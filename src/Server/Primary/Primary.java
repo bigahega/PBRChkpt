@@ -1,9 +1,6 @@
 package Server.Primary;
 
-import Server.Shared.KeyValueStore;
-import Server.Shared.Request;
-import Server.Shared.Response;
-import Server.Shared.Server;
+import Server.Shared.*;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -26,6 +23,7 @@ public class Primary extends Server {
             while(true) {
                 Socket client = this.listenerSocket.accept();
                 ServerWorker serverWorker = new ServerWorker(client);
+                serverWorker.start();
             }
         } catch (IOException ex) {
             ex.printStackTrace();
@@ -54,18 +52,30 @@ public class Primary extends Server {
                             break;
                     } else if (incoming instanceof Request) {
                         Request request = (Request) incoming;
+                        Response response;
+                        RequestType requestType = request.getRequestType();
                         String requestedKey = request.getKey();
-                        String value = keyValueStore.get(requestedKey);
-                        Response response = new Response(value);
+                        if (requestType.equals(RequestType.PULL)) {
+                            String value;
+                            synchronized (keyValueStore) {
+                                value = keyValueStore.get(requestedKey);
+                            }
+                            response = new Response(value);
+                        } else {
+                            String value = request.getValue();
+                            synchronized (keyValueStore) {
+                                keyValueStore.put(requestedKey, value);
+                            }
+                            response = new Response("OK");
+                        }
                         ObjectOutput output = new ObjectOutputStream(this.client.getOutputStream());
                         output.writeObject(response);
                         output.close();
-                    }
+                    } else
+                        break;
                 }
                 this.client.close();
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            } catch (ClassNotFoundException ex) {
+            } catch (Exception ex) {
                 ex.printStackTrace();
             }
         }
