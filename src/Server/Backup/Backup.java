@@ -1,13 +1,8 @@
 package Server.Backup;
 
-import Server.Shared.KeyValueStore;
-import Server.Shared.Request;
-import Server.Shared.RequestType;
-import Server.Shared.Server;
+import Server.Shared.*;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -51,8 +46,19 @@ public class Backup extends Server {
                             break;
                     } else if (incoming instanceof Request) {
                         Request request = (Request) incoming;
-                        if (request.getRequestType().equals(RequestType.PULL) || request.getRequestType().equals(RequestType.PUSH))
-                        //forward it
+                        if (request.getRequestType().equals(RequestType.PULL) || request.getRequestType().equals(RequestType.PUSH)) {
+                            Socket primarySocket = new Socket(primaryHost, port);
+                            ObjectOutput output = new ObjectOutputStream(primarySocket.getOutputStream());
+                            output.writeObject(request);
+                            ObjectInput primaryResponse = new ObjectInputStream(primarySocket.getInputStream());
+                            Response response = (Response) primaryResponse.readObject();
+                            primarySocket.close();
+                            output.close();
+                            primaryResponse.close();
+                            ObjectOutput clientResponse = new ObjectOutputStream(this.client.getOutputStream());
+                            clientResponse.writeObject(response);
+                            clientResponse.close();
+                        }
                     }
                 }
             } catch (Exception ex) {
