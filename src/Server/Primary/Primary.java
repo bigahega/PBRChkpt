@@ -1,11 +1,11 @@
 package Server.Primary;
 
 import Server.Shared.KeyValueStore;
+import Server.Shared.Request;
+import Server.Shared.Response;
 import Server.Shared.Server;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.List;
@@ -32,27 +32,42 @@ public class Primary extends Server {
         }
     }
 
-}
+    private void checkpoint() {
 
-class ServerWorker extends Thread {
-
-    private Socket client;
-
-    public ServerWorker(Socket client) {
-        this.client = client;
     }
 
-    @Override
-    public void run() {
-        try(BufferedReader reader = new BufferedReader(new InputStreamReader(this.client.getInputStream()))) {
-            while(true) {
-                String line = reader.readLine();
-                if(line.trim().equals("BYE"))
-                    break;
+    private class ServerWorker extends Thread {
+
+        private Socket client;
+
+        public ServerWorker(Socket client) {
+            this.client = client;
+        }
+
+        @Override
+        public void run() {
+            try (ObjectInput input = new ObjectInputStream(this.client.getInputStream())) {
+                while (true) {
+                    Object incoming = input.readObject();
+                    if (incoming instanceof Integer) {
+                        if ((int) incoming == 0xDEADBABA)
+                            break;
+                    } else if (incoming instanceof Request) {
+                        Request request = (Request) incoming;
+                        String requestedKey = request.getKey();
+                        String value = keyValueStore.get(requestedKey);
+                        Response response = new Response(value);
+                        ObjectOutput output = new ObjectOutputStream(this.client.getOutputStream());
+                        output.writeObject(response);
+                        output.close();
+                    }
+                }
+                this.client.close();
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            } catch (ClassNotFoundException ex) {
+                ex.printStackTrace();
             }
-            this.client.close();
-        } catch (IOException ex) {
-            ex.printStackTrace();
         }
     }
 }
