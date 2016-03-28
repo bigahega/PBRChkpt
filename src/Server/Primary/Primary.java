@@ -63,7 +63,6 @@ public class Primary extends Server {
                             response = new Response(value);
                         } else {
                             String value = request.getValue();
-                            System.out.println("Key=" + request.getKey() + "\tValue=" + request.getValue());
                             synchronized (keyValueStore) {
                                 keyValueStore.put(requestedKey, value);
                             }

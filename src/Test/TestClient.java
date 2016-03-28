@@ -16,13 +16,13 @@ import java.net.Socket;
 public class TestClient {
 
     public static void main(String[] args) throws Exception {
-        Socket clientSocket = new Socket("localhost", 1881);
-        System.out.println("connected");
+        Socket clientSocket = new Socket("192.95.54.27", 1881);
         ObjectOutput objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
-        ObjectInput objectInput = new ObjectInputStream(clientSocket.getInputStream());
-        Request request = new Request(RequestType.PUSH, "testkey", "testval");
+        //Request request = new Request(RequestType.PUSH, "testkey", "testval");
+        Request request = new Request(RequestType.PULL, "testkey", null);
         objectOutput.writeObject(request);
         System.out.println("object written");
+        ObjectInput objectInput = new ObjectInputStream(clientSocket.getInputStream());
         Response response;
         response = (Response) objectInput.readObject();
         System.out.println(response.getResponseValue());
