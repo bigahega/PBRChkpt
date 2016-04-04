@@ -3,6 +3,7 @@ package Test;
 import Server.Shared.Request;
 import Server.Shared.RequestType;
 import Server.Shared.Response;
+import org.javatuples.Pair;
 
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
@@ -19,7 +20,7 @@ public class TestClient {
         Socket clientSocket = new Socket("192.95.54.27", 1881);
         ObjectOutput objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
         //Request request = new Request(RequestType.PUSH, "testkey", "testval");
-        Request request = new Request(RequestType.PULL, "testkey", null);
+        Request request = new Request(RequestType.PULL, new Pair<String, String>("testkey", null));
         objectOutput.writeObject(request);
         System.out.println("object written");
         ObjectInput objectInput = new ObjectInputStream(clientSocket.getInputStream());

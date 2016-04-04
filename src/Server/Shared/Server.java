@@ -7,8 +7,9 @@ import java.net.ServerSocket;
  */
 public abstract class Server {
 
-    protected final int port = 1881;
-    protected KeyValueStore keyValueStore;
+    protected final int primaryPort = 1881;
+    protected final int backupPort = 1882;
+    protected KeyValueStore keyValueStore = null;
     protected ServerSocket listenerSocket;
 
 }

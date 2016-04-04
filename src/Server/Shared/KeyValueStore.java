@@ -26,4 +26,12 @@ public class KeyValueStore implements Serializable {
         return this.keysValues.get(key);
     }
 
+    public Map<String, String> getKeysValues() {
+        return this.keysValues;
+    }
+
+    public void restoreCheckpoint(Map<String, String> checkpoint) {
+        this.keysValues = checkpoint;
+    }
+
 }

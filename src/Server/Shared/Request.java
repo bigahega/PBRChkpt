@@ -1,5 +1,7 @@
 package Server.Shared;
 
+import org.javatuples.Pair;
+
 import java.io.Serializable;
 
 /**
@@ -8,13 +10,18 @@ import java.io.Serializable;
 public class Request implements Serializable {
 
     private final RequestType requestType;
-    private final String key;
-    private final String value;
+    private final Object data;
+    private String key;
+    private String value;
 
-    public Request(RequestType requestType, String key, String value) {
+    public Request(RequestType requestType, Object data) {
         this.requestType = requestType;
-        this.key = key;
-        this.value = value;
+        this.data = data;
+        if (!requestType.equals(RequestType.CHECKPOINT)) {
+            Pair<String, String> keyValue = (Pair<String, String>) data;
+            this.key = keyValue.getValue0();
+            this.value = keyValue.getValue1();
+        }
     }
 
     public RequestType getRequestType() {
@@ -27,6 +34,10 @@ public class Request implements Serializable {
 
     public String getValue() {
         return this.value;
+    }
+
+    public Object getData() {
+        return this.data;
     }
 
 }
