@@ -25,7 +25,7 @@ public class Primary extends Server {
     private ReadWriteLock readWriteLock = new ReentrantReadWriteLock(true);
 
     public Primary(List<String> serverList, Type checkpointType) {
-
+        System.out.println("Primary Server is initializing.");
         this.serverList = serverList;
         this.checkpointType = checkpointType;
         if (this.keyValueStore == null)
@@ -34,6 +34,7 @@ public class Primary extends Server {
         this.previousSystemState = this.initalSystemState;
         try {
             this.listenerSocket = new ServerSocket(this.primaryPort);
+            System.out.println("Socket " + this.primaryPort + " is created.");
             while (true) {
                 Socket client = this.listenerSocket.accept();
                 ServerWorker serverWorker = new ServerWorker(client);
@@ -49,23 +50,37 @@ public class Primary extends Server {
         RequestType requestType = request.getRequestType();
         String requestedKey = request.getKey();
         if (requestType.equals(RequestType.PULL)) {
+            System.out.println("It is a PULL request.");
+            System.out.print("Trying to get a read-lock...");
             readWriteLock.readLock().lock();
+            System.out.println("Done.");
             String value;
             value = keyValueStore.get(requestedKey);
             response = new Response(value);
+            System.out.print("Releasing the read-lock...");
             readWriteLock.readLock().unlock();
+            System.out.println("Done.");
         } else if (requestType.equals(RequestType.PUSH)) {
+            System.out.println("It is a PUSH request.");
+            System.out.print("Trying to get a write-lock...");
             readWriteLock.writeLock().lock();
+            System.out.println("Done.");
             String value = request.getValue();
             keyValueStore.put(requestedKey, value);
             response = new Response("OK");
+            System.out.print("Releasing the write-lock...");
             readWriteLock.writeLock().unlock();
+            System.out.println("Done.");
         }
         return response;
     }
 
     private void checkpoint() {
+        System.out.println("Checkpointing is initializing...");
+        System.out.println("Checkpoint Type is: " + this.checkpointType.getTypeName());
+        System.out.print("Trying to get a write-lock...");
         readWriteLock.writeLock().lock();
+        System.out.println("Done.");
         Map<String, String> currentSystemState = this.keyValueStore.getKeysValues();
         Checkpoint checkpoint;
         if (this.checkpointType.equals(FullCheckpoint.class))
@@ -81,13 +96,16 @@ public class Primary extends Server {
 
         for (String backupServer : this.serverList) {
             try {
+                System.out.println("Connecting to backup server: " + backupServer);
                 Socket connectionToBackupServer = new Socket(backupServer, this.backupPort);
                 ObjectOutput outputToBackupServer = new ObjectOutputStream(connectionToBackupServer.getOutputStream());
+                System.out.println("Sending the checkpoint object to backup server: " + backupServer);
                 outputToBackupServer.writeObject(checkpoint);
                 ObjectInput inputFromBackupServer = new ObjectInputStream(connectionToBackupServer.getInputStream());
                 Response response = (Response) inputFromBackupServer.readObject();
                 if (!response.getResponseValue().equals("CHECKPOINT OK"))
-                    throw new IllegalStateException("Checkpoint response incorrect from server: " + backupServer);
+                    throw new IllegalStateException("Incorrect checkpoint response from server: " + backupServer);
+                System.out.println("Backup server " + backupServer + " accepted the checkpoint.");
                 outputToBackupServer.close();
                 inputFromBackupServer.close();
                 connectionToBackupServer.close();
@@ -97,6 +115,7 @@ public class Primary extends Server {
 
             this.previousSystemState = currentSystemState;
         }
+        System.out.println("Releasing the write-lock...");
         readWriteLock.writeLock().unlock();
     }
 
@@ -111,12 +130,15 @@ public class Primary extends Server {
 
         @Override
         public void run() {
+            System.out.println("New request incoming.");
             try (ObjectInput input = new ObjectInputStream(this.client.getInputStream())) {
                 while (true) {
                     Object incoming = input.readObject();
                     if (incoming instanceof Integer) {
-                        if ((int) incoming == 0xDEADBABA)
+                        if ((int) incoming == 0xDEADBABA) {
+                            System.out.println("It is a kill request. Bye!");
                             break;
+                        }
                     } else if (incoming instanceof Request) {
                         Request request = (Request) incoming;
                         Response response = executeWorkRequest(request);
