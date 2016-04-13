@@ -22,7 +22,9 @@ public class Primary extends Server {
     private Map<String, String> initalSystemState;
     private Map<String, String> previousSystemState;
     private Type checkpointType;
-    private ReadWriteLock readWriteLock = new ReentrantReadWriteLock(true);
+    private ReadWriteLock keyValueStoreReadWriteLock = new ReentrantReadWriteLock(true);
+    private ReadWriteLock actionCountReadWriteLock = new ReentrantReadWriteLock(true);
+    private int actionCount = 0;
 
     public Primary(List<String> serverList, Type checkpointType) {
         System.out.println("Primary Server is initializing.");
@@ -52,24 +54,24 @@ public class Primary extends Server {
         if (requestType.equals(RequestType.PULL)) {
             System.out.println("It is a PULL request.");
             System.out.print("Trying to get a read-lock...");
-            readWriteLock.readLock().lock();
+            keyValueStoreReadWriteLock.readLock().lock();
             System.out.println("Done.");
             String value;
             value = keyValueStore.get(requestedKey);
             response = new Response(value);
             System.out.print("Releasing the read-lock...");
-            readWriteLock.readLock().unlock();
+            keyValueStoreReadWriteLock.readLock().unlock();
             System.out.println("Done.");
         } else if (requestType.equals(RequestType.PUSH)) {
             System.out.println("It is a PUSH request.");
             System.out.print("Trying to get a write-lock...");
-            readWriteLock.writeLock().lock();
+            keyValueStoreReadWriteLock.writeLock().lock();
             System.out.println("Done.");
             String value = request.getValue();
             keyValueStore.put(requestedKey, value);
             response = new Response("OK");
             System.out.print("Releasing the write-lock...");
-            readWriteLock.writeLock().unlock();
+            keyValueStoreReadWriteLock.writeLock().unlock();
             System.out.println("Done.");
         }
         return response;
@@ -79,7 +81,7 @@ public class Primary extends Server {
         System.out.println("Checkpointing is initializing...");
         System.out.println("Checkpoint Type is: " + this.checkpointType.getTypeName());
         System.out.print("Trying to get a write-lock...");
-        readWriteLock.writeLock().lock();
+        keyValueStoreReadWriteLock.writeLock().lock();
         System.out.println("Done.");
         Map<String, String> currentSystemState = this.keyValueStore.getKeysValues();
         Checkpoint checkpoint;
@@ -94,7 +96,7 @@ public class Primary extends Server {
         else
             return;
 
-        for (String backupServer : this.serverList) {
+        this.serverList.parallelStream().forEach(backupServer -> {
             try {
                 System.out.println("Connecting to backup server: " + backupServer);
                 Socket connectionToBackupServer = new Socket(backupServer, this.backupPort);
@@ -112,17 +114,16 @@ public class Primary extends Server {
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
+        });
 
-            this.previousSystemState = currentSystemState;
-        }
+        this.previousSystemState = currentSystemState;
         System.out.println("Releasing the write-lock...");
-        readWriteLock.writeLock().unlock();
+        keyValueStoreReadWriteLock.writeLock().unlock();
     }
 
     private class ServerWorker extends Thread {
 
         private Socket client;
-        private int actionCount = 0;
 
         public ServerWorker(Socket client) {
             this.client = client;
@@ -145,12 +146,18 @@ public class Primary extends Server {
                         ObjectOutput output = new ObjectOutputStream(this.client.getOutputStream());
                         output.writeObject(response);
                         output.close();
+                        actionCountReadWriteLock.writeLock().lock();
                         actionCount++;
+                        actionCountReadWriteLock.writeLock().unlock();
                         if (!checkpointType.equals(PeriodicCheckpoint.class))
                             checkpoint();
-                        else if (actionCount % CHECKPOINT_PERIOD == 0) {
-                            checkpoint();
-                            actionCount = 0;
+                        else {
+                            actionCountReadWriteLock.writeLock().lock();
+                            if (actionCount % CHECKPOINT_PERIOD == 0) {
+                                checkpoint();
+                                actionCount = 0;
+                            }
+                            actionCountReadWriteLock.writeLock().unlock();
                         }
                     } else
                         break;

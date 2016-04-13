@@ -103,7 +103,7 @@ public class Backup extends Server {
                         } else {
                             checkpointList.add((Checkpoint) request.getData());
                             ObjectOutput responseToPrimary = new ObjectOutputStream(this.client.getOutputStream());
-                            Response response = new Response("CHECKPOINT OK");
+                            Response response = new Response(ResponseType.ACK);
                             responseToPrimary.writeObject(response);
                             responseToPrimary.close();
                         }
