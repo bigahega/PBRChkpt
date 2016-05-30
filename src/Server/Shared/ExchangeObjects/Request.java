@@ -1,4 +1,4 @@
-package Server.Shared;
+package Server.Shared.ExchangeObjects;
 
 import org.javatuples.Pair;
 

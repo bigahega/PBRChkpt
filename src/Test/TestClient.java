@@ -1,34 +1,102 @@
 package Test;
 
-import Server.Shared.Request;
-import Server.Shared.RequestType;
-import Server.Shared.Response;
+import Server.Shared.ExchangeObjects.Request;
+import Server.Shared.ExchangeObjects.RequestType;
+import Server.Shared.ExchangeObjects.Response;
 import org.javatuples.Pair;
 
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.Socket;
+import java.net.SocketException;
+import java.util.HashMap;
 
 /**
- * Created by Berkin GÜLER (bguler15@ku.edu.tr) on 28.03.2016.
+ * Created by bguler on 4/25/16.
  */
 public class TestClient {
 
+    private static HashMap<String, String> db = new HashMap<>();
+    private static Float average_delay = 0.0f;
+    private static Integer req_count = 0;
+
     public static void main(String[] args) throws Exception {
-        Socket clientSocket = new Socket("192.95.54.27", 1881);
+        String filename = "/home/bguler/Desktop/db.txt";
+        try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                try {
+                    String[] matches = line.split("\t");
+                    if (!matches[0].equalsIgnoreCase("\\") && Integer.parseInt(matches[0]) > 0 && matches[1].length() > 1)
+                        db.put(matches[0], matches[1]);
+                } catch (Exception ex2) {
+                    ex2.printStackTrace();
+                }
+            }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+        System.out.println("Reading finished");
+        Socket clientSocket = new Socket("planet1.pnl.nitech.ac.jp", 1881);
         ObjectOutput objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
-        //Request request = new Request(RequestType.PUSH, "testkey", "testval");
-        Request request = new Request(RequestType.PULL, new Pair<String, String>("testkey", null));
-        objectOutput.writeObject(request);
-        System.out.println("object written");
         ObjectInput objectInput = new ObjectInputStream(clientSocket.getInputStream());
-        Response response;
-        response = (Response) objectInput.readObject();
-        System.out.println(response.getResponseValue());
-        objectOutput.close();
+        int i = 0;
+        for (String key : db.keySet()) {
+            boolean next = false;
+            while (!next) {
+                try {
+                    if (i <= 50000) {
+                        i++;
+                        continue;
+                    }
+                    if (req_count >= 10000)
+                        break;
+
+                    if (!clientSocket.isConnected()) {
+                        System.out.println("Connnecting to primary...");
+                        clientSocket = new Socket("planet1.pnl.nitech.ac.jp", 1881);
+                        objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
+                        System.out.println("streams created");
+                    }
+
+                    long start = System.nanoTime();
+                    System.out.println("creating request");
+                    Request request = new Request(RequestType.PUSH, new Pair<>(key, db.get(key)));
+                    objectOutput.writeObject(request);
+                    System.out.println("object written");
+                    if (!clientSocket.isConnected() || objectInput == null)
+                        objectInput = new ObjectInputStream(clientSocket.getInputStream());
+                    Response response;
+                    response = (Response) objectInput.readObject();
+                    System.out.println(response.getResponseValue());
+                    long end = System.nanoTime();
+                    req_count++;
+                    average_delay += (end - start) / 1000000;
+                    System.out.println("Request delay: " + (float) (end - start) / 1000000.f + "ms");
+                    System.out.println("Average delay: " + average_delay / req_count + "ms");
+                    System.out.println("Req count: " + req_count);
+                    next = true;
+                } catch (EOFException ex) {
+                    System.out.println("Streams sucked up...");
+                    Thread.sleep(100);
+                    continue;
+                } catch (StreamCorruptedException ex) {
+                    System.out.println("Streams sucked up...");
+                    clientSocket = new Socket("planet1.pnl.nitech.ac.jp", 1881);
+                    objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
+                    objectInput = new ObjectInputStream(clientSocket.getInputStream());
+                    Thread.sleep(100);
+                } catch (SocketException ex) {
+                    System.out.println("Socket sucked up...Trying to reboot it...");
+                    clientSocket = new Socket("planet1.pnl.nitech.ac.jp", 1881);
+                    objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
+                    objectInput = new ObjectInputStream(clientSocket.getInputStream());
+                    Thread.sleep(100);
+                }
+            }
+        }
+        System.out.println("DONE");
         objectInput.close();
+        objectOutput.close();
         clientSocket.close();
     }
 

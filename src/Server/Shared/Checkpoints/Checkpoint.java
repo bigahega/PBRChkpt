@@ -1,4 +1,4 @@
-package Server.Shared;
+package Server.Shared.Checkpoints;
 
 import java.io.Serializable;
 import java.util.Map;

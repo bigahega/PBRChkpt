@@ -7,9 +7,10 @@ import java.net.ServerSocket;
  */
 public abstract class Server {
 
+    protected static KeyValueStore keyValueStore = null;
     protected final int primaryPort = 1881;
     protected final int backupPort = 1882;
-    protected KeyValueStore keyValueStore = null;
+    protected final String baseFilePath = "/home/ku_distributed";
     protected ServerSocket listenerSocket;
 
 }
