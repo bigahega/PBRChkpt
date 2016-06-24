@@ -23,10 +23,10 @@ import java.util.Map;
  */
 public class Backup {
 
-    private static KeyValueStore keyValueStore = null;
     private final int primaryPort = 1881;
     private final int backupPort = 1882;
     private final String baseFilePath = "/home/ku_distributed";
+    private KeyValueStore keyValueStore = null;
     private ServerSocket listenerSocket;
     private List<String> serverList;
     private List<Checkpoint> checkpointList;
@@ -68,7 +68,7 @@ public class Backup {
 
     private Response takeover(Request request) {
         this.restoreCheckpoints();
-        Primary p = new Primary(this.serverList, this.checkpointType, null, -1, keyValueStore);
+        Primary p = new Primary(this.serverList, this.checkpointType, null, -1, this.keyValueStore);
         p.setKeyValueStore(keyValueStore);
         System.out.println("work work");
         return p.executeWorkRequest(request);
@@ -86,6 +86,7 @@ public class Backup {
         System.out.println("Found checkpoint type: " + checkpointType.getTypeName());
         if (checkpointType.equals(FullCheckpoint.class) || checkpointType.equals(PeriodicCheckpoint.class)) {
             keyValueStore.restoreCheckpoint(this.checkpointList.get(this.checkpointList.size() - 1).getCheckpointData());
+            System.out.println("Built system state size: " + this.keyValueStore.getKeysValues().size());
             this.checkpointList.clear();
         } else if (checkpointType.equals(IncrementalCheckpoint.class) || checkpointType.equals(PeriodicIncrementalCheckpoint.class)) {
             Map<String, String> builtSystemState = new HashMap<>();
@@ -118,12 +119,13 @@ public class Backup {
         @Override
         public void run() {
             try (ObjectInput input = new ObjectInputStream(this.client.getInputStream())) {
-                ObjectOutput output = new ObjectOutputStream(this.client.getOutputStream());
                 while (true) {
                     Object incoming = input.readObject();
                     if (incoming instanceof Integer) {
-                        if ((int) incoming == 0xDEADBABA)
+                        if ((int) incoming == 0xDEADBABA) {
+                            System.exit(0);
                             break;
+                        }
                     } else if (incoming instanceof Request) {
                         Request request = (Request) incoming;
                         if (request.getRequestType().equals(RequestType.PULL) || request.getRequestType().equals(RequestType.PUSH)) {

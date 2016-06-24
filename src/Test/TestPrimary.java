@@ -1,7 +1,10 @@
 package Test;
 
 import Server.Primary.Primary;
+import Server.Shared.Checkpoints.DifferentialCheckpoint;
+import Server.Shared.Checkpoints.FullCheckpoint;
 import Server.Shared.Checkpoints.IncrementalCheckpoint;
+import Server.Shared.Checkpoints.PeriodicCheckpoint;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,8 +21,22 @@ public class TestPrimary {
         backupList.add("planetlab3.rutgers.edu");
         backupList.add("saturn.planetlab.carleton.ca");
         backupList.add("pl2.sos.info.hiroshima-cu.ac.jp");
-        Primary p = new Primary(backupList, IncrementalCheckpoint.class, "/home/ku_distributed/db.txt", 50000);
-        //Primary p = new Primary(backupList, PeriodicCheckpoint.class, null, -1);
+        //Primary p = new Primary(backupList, FullCheckpoint.class, "/home/ku_distributed/db.txt", 50000);
+        Primary p;
+        switch (args[0]) {
+            case "full":
+                p = new Primary(backupList, FullCheckpoint.class, null, -1);
+                break;
+            case "periodic":
+                p = new Primary(backupList, PeriodicCheckpoint.class, null, -1);
+                break;
+            case "incremental":
+                p = new Primary(backupList, IncrementalCheckpoint.class, null, -1);
+                break;
+            case "differential":
+                p = new Primary(backupList, DifferentialCheckpoint.class, null, -1);
+                break;
+        }
     }
 
 }

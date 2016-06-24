@@ -20,7 +20,7 @@ public class TestClient {
     private static Integer req_count = 0;
 
     public static void main(String[] args) throws Exception {
-        String filename = "/home/bguler/Desktop/db.txt";
+        String filename = args[0];
         try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -40,16 +40,19 @@ public class TestClient {
         ObjectOutput objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
         ObjectInput objectInput = new ObjectInputStream(clientSocket.getInputStream());
         int i = 0;
+        dblooper:
         for (String key : db.keySet()) {
             boolean next = false;
             while (!next) {
                 try {
-                    if (i <= 50000) {
+                    if (i <= 60000) {
                         i++;
                         continue;
                     }
-                    if (req_count >= 10000)
-                        break;
+                    if (req_count >= 10000) {
+                        objectOutput.writeObject(0xDEADBABA);
+                        break dblooper;
+                    }
 
                     if (!clientSocket.isConnected()) {
                         System.out.println("Connnecting to primary...");
@@ -63,7 +66,7 @@ public class TestClient {
                     Request request = new Request(RequestType.PUSH, new Pair<>(key, db.get(key)));
                     objectOutput.writeObject(request);
                     System.out.println("object written");
-                    if (!clientSocket.isConnected() || objectInput == null)
+                    if (!clientSocket.isConnected())
                         objectInput = new ObjectInputStream(clientSocket.getInputStream());
                     Response response;
                     response = (Response) objectInput.readObject();

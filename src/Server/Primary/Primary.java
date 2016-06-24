@@ -12,9 +12,6 @@ import java.lang.reflect.Type;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,13 +23,12 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class Primary {
 
-    private static KeyValueStore keyValueStore = null;
-    private static int CHECKPOINT_PERIOD = 50;
+    private static int CHECKPOINT_PERIOD = 500;
     private static long checkpoint_count = 0;
     private static long checkpoint_delay = 0;
     private final int primaryPort = 1881;
     private final int backupPort = 1882;
-    private final String baseFilePath = "/home/ku_distributed";
+    private KeyValueStore keyValueStore = null;
     private ServerSocket listenerSocket;
     private List<String> serverList;
     private Map<String, String> initalSystemState;
@@ -50,12 +46,12 @@ public class Primary {
         System.out.println("Primary Server is initializing.");
         this.serverList = serverList;
         this.checkpointType = checkpointType;
-        if (keyValueStore == null) {
+        if (newKeyValueStore == null && this.keyValueStore == null) {
             System.out.println("Key Value Store is null. Initiating...");
             keyValueStore = new KeyValueStore();
         } else {
             System.out.println("Key Value Store is ready.");
-            keyValueStore = newKeyValueStore;
+            this.keyValueStore = newKeyValueStore;
         }
         if (db_path != null && db_size != -1) {
             try (BufferedReader reader = new BufferedReader(new FileReader(db_path))) {
@@ -107,10 +103,8 @@ public class Primary {
     }
 
     public Response executeWorkRequest(Request request) {
-        System.out.println("ahmet work");
         Response response = null;
         RequestType requestType = request.getRequestType();
-        System.out.println("ahmet work 2");
         String requestedKey = request.getKey();
         if (requestType.equals(RequestType.PULL)) {
             System.out.println("It is a PULL request.");
@@ -193,15 +187,6 @@ public class Primary {
         System.out.println("Checkpoint size is: " + sizeof(checkpoint) + "bytes");
         System.out.println("Checkpointing process delayed " + (end - start) / 1000000 + "ms");
         System.out.println("Average checkpoint delay: " + checkpoint_delay / checkpoint_count + "ms");
-
-        try {
-            Files.write(Paths.get(this.baseFilePath + "/" + "primary.output"),
-                    (keyValueStore.getKeysValues().size() + "\t" + sizeof(checkpoint) + System.lineSeparator()).getBytes(),
-                    StandardOpenOption.APPEND);
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
-
         this.previousSystemState = new HashMap<>(currentSystemState);
         System.out.println("Releasing the write-lock...");
         keyValueStoreReadWriteLock.writeLock().unlock();
@@ -228,6 +213,18 @@ public class Primary {
                     if (incoming instanceof Integer) {
                         if ((int) incoming == 0xDEADBABA) {
                             System.out.println("It is a kill request. Bye!");
+                            serverList.parallelStream().forEach(backupServer -> {
+                                try {
+                                    System.out.println("Connecting to backup server: " + backupServer);
+                                    Socket connectionToBackupServer = new Socket(backupServer, backupPort);
+                                    ObjectOutput outputToBackupServer = new ObjectOutputStream(connectionToBackupServer.getOutputStream());
+                                    outputToBackupServer.writeObject(0xDEADBABA);
+                                    connectionToBackupServer.close();
+                                } catch (Exception ex) {
+                                    ex.printStackTrace();
+                                }
+                            });
+                            System.exit(0);
                             break;
                         }
                     } else if (incoming instanceof Request) {

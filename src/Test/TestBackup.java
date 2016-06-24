@@ -1,7 +1,10 @@
 package Test;
 
 import Server.Backup.Backup;
+import Server.Shared.Checkpoints.DifferentialCheckpoint;
+import Server.Shared.Checkpoints.FullCheckpoint;
 import Server.Shared.Checkpoints.IncrementalCheckpoint;
+import Server.Shared.Checkpoints.PeriodicCheckpoint;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,7 +21,21 @@ public class TestBackup {
         backupList.add("planetlab3.rutgers.edu");
         backupList.add("saturn.planetlab.carleton.ca");
         backupList.add("pl2.sos.info.hiroshima-cu.ac.jp");
-        Backup b = new Backup(backupList, IncrementalCheckpoint.class);
+        Backup b;
+        switch (args[0]) {
+            case "full":
+                b = new Backup(backupList, FullCheckpoint.class);
+                break;
+            case "periodic":
+                b = new Backup(backupList, PeriodicCheckpoint.class);
+                break;
+            case "incremental":
+                b = new Backup(backupList, IncrementalCheckpoint.class);
+                break;
+            case "differential":
+                b = new Backup(backupList, DifferentialCheckpoint.class);
+                break;
+        }
     }
 
 }
