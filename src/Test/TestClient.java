@@ -36,7 +36,7 @@ public class TestClient {
             ex.printStackTrace();
         }
         System.out.println("Reading finished");
-        Socket clientSocket = new Socket("planet1.pnl.nitech.ac.jp", 1881);
+        Socket clientSocket = new Socket("planetlab-01.cs.princeton.edu", 1881);
         ObjectOutput objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
         ObjectInput objectInput = new ObjectInputStream(clientSocket.getInputStream());
         int i = 0;
@@ -56,7 +56,7 @@ public class TestClient {
 
                     if (!clientSocket.isConnected()) {
                         System.out.println("Connnecting to primary...");
-                        clientSocket = new Socket("planet1.pnl.nitech.ac.jp", 1881);
+                        clientSocket = new Socket("planetlab-01.cs.princeton.edu", 1881);
                         objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
                         System.out.println("streams created");
                     }

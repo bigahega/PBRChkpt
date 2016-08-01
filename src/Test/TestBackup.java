@@ -20,7 +20,7 @@ public class TestBackup {
     public static void main(String[] args) {
         backupList.add("planetlab3.rutgers.edu");
         backupList.add("saturn.planetlab.carleton.ca");
-        backupList.add("pl2.sos.info.hiroshima-cu.ac.jp");
+        backupList.add("planetlab01.cs.washington.edu");
         Backup b;
         switch (args[0]) {
             case "full":

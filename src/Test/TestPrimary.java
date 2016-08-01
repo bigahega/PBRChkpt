@@ -20,7 +20,7 @@ public class TestPrimary {
     public static void main(String[] args) {
         backupList.add("planetlab3.rutgers.edu");
         backupList.add("saturn.planetlab.carleton.ca");
-        backupList.add("pl2.sos.info.hiroshima-cu.ac.jp");
+        backupList.add("planetlab01.cs.washington.edu");
         //Primary p = new Primary(backupList, FullCheckpoint.class, "/home/ku_distributed/db.txt", 50000);
         Primary p;
         switch (args[0]) {
