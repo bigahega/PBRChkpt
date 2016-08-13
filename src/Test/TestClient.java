@@ -36,7 +36,7 @@ public class TestClient {
             ex.printStackTrace();
         }
         System.out.println("Reading finished");
-        Socket clientSocket = new Socket("planetlab-01.cs.princeton.edu", 1881);
+        Socket clientSocket = new Socket("mars.planetlab.haw-hamburg.de", 1881);
         ObjectOutput objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
         ObjectInput objectInput = new ObjectInputStream(clientSocket.getInputStream());
         int i = 0;
@@ -45,10 +45,10 @@ public class TestClient {
             boolean next = false;
             while (!next) {
                 try {
-                    if (i <= 60000) {
-                        i++;
-                        continue;
-                    }
+                    //if (i <= 60000) {
+                    //    i++;
+                    //    continue;
+                    //}
                     if (req_count >= 10000) {
                         objectOutput.writeObject(0xDEADBABA);
                         break dblooper;
@@ -56,7 +56,7 @@ public class TestClient {
 
                     if (!clientSocket.isConnected()) {
                         System.out.println("Connnecting to primary...");
-                        clientSocket = new Socket("planetlab-01.cs.princeton.edu", 1881);
+                        clientSocket = new Socket("mars.planetlab.haw-hamburg.de", 1881);
                         objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
                         System.out.println("streams created");
                     }
@@ -73,7 +73,7 @@ public class TestClient {
                     System.out.println(response.getResponseValue());
                     long end = System.nanoTime();
                     req_count++;
-                    average_delay += (end - start) / 1000000;
+                    average_delay += (end - start) / 1000000.f;
                     System.out.println("Request delay: " + (float) (end - start) / 1000000.f + "ms");
                     System.out.println("Average delay: " + average_delay / req_count + "ms");
                     System.out.println("Req count: " + req_count);
@@ -81,16 +81,15 @@ public class TestClient {
                 } catch (EOFException ex) {
                     System.out.println("Streams sucked up...");
                     Thread.sleep(100);
-                    continue;
                 } catch (StreamCorruptedException ex) {
                     System.out.println("Streams sucked up...");
-                    clientSocket = new Socket("planet1.pnl.nitech.ac.jp", 1881);
+                    clientSocket = new Socket("mars.planetlab.haw-hamburg.de", 1881);
                     objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
                     objectInput = new ObjectInputStream(clientSocket.getInputStream());
                     Thread.sleep(100);
                 } catch (SocketException ex) {
                     System.out.println("Socket sucked up...Trying to reboot it...");
-                    clientSocket = new Socket("planet1.pnl.nitech.ac.jp", 1881);
+                    clientSocket = new Socket("mars.planetlab.haw-hamburg.de", 1881);
                     objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
                     objectInput = new ObjectInputStream(clientSocket.getInputStream());
                     Thread.sleep(100);

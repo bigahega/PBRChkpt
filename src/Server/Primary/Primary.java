@@ -138,7 +138,7 @@ public class Primary {
         System.out.print("Trying to get a write-lock...");
         keyValueStoreReadWriteLock.writeLock().lock();
         System.out.println("Done.");
-        Map<String, String> currentSystemState = new HashMap<>(keyValueStore.getKeysValues());
+        byte[] currentSystemState = new HashMap<>(keyValueStore.getKeysValues());
         Checkpoint checkpoint;
         if (this.checkpointType.equals(FullCheckpoint.class))
             checkpoint = new FullCheckpoint(currentSystemState);

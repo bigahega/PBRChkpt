@@ -1,10 +1,7 @@
 package Test;
 
 import Server.Backup.Backup;
-import Server.Shared.Checkpoints.DifferentialCheckpoint;
-import Server.Shared.Checkpoints.FullCheckpoint;
-import Server.Shared.Checkpoints.IncrementalCheckpoint;
-import Server.Shared.Checkpoints.PeriodicCheckpoint;
+import Server.Shared.Checkpoints.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +31,12 @@ public class TestBackup {
                 break;
             case "differential":
                 b = new Backup(backupList, DifferentialCheckpoint.class);
+                break;
+            case "pincremental":
+                b = new Backup(backupList, PeriodicIncrementalCheckpoint.class);
+                break;
+            case "pdifferential":
+                b = new Backup(backupList, PeriodicDifferentialCheckpoint.class);
                 break;
         }
     }

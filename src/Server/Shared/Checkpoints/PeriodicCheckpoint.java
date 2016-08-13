@@ -8,8 +8,9 @@ import java.util.Map;
 public class PeriodicCheckpoint extends Checkpoint {
 
     public PeriodicCheckpoint(Map<String, String> checkpointData) {
-        this.checkpointData = checkpointData;
+        this.checkpointData = this.mapToByteArray(checkpointData);
     }
 
-
+    public PeriodicCheckpoint() {
+    }
 }

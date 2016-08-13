@@ -1,5 +1,8 @@
 package Server.Shared.Checkpoints;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Map;
 
@@ -8,10 +11,24 @@ import java.util.Map;
  */
 public abstract class Checkpoint implements Serializable {
 
-    protected Map<String, String> checkpointData;
+    protected byte[] checkpointData;
 
-    public Map<String, String> getCheckpointData() {
+    public byte[] getCheckpointData() {
         return this.checkpointData;
+    }
+
+    protected byte[] mapToByteArray(Map<String, String> map) {
+        byte[] result = null;
+
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            oos.writeObject(map);
+            result = baos.toByteArray();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+
+        return result;
     }
 
 }

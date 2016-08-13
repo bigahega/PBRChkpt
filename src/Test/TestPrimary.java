@@ -1,10 +1,7 @@
 package Test;
 
 import Server.Primary.Primary;
-import Server.Shared.Checkpoints.DifferentialCheckpoint;
-import Server.Shared.Checkpoints.FullCheckpoint;
-import Server.Shared.Checkpoints.IncrementalCheckpoint;
-import Server.Shared.Checkpoints.PeriodicCheckpoint;
+import Server.Shared.Checkpoints.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +32,12 @@ public class TestPrimary {
                 break;
             case "differential":
                 p = new Primary(backupList, DifferentialCheckpoint.class, null, -1);
+                break;
+            case "pincremental":
+                p = new Primary(backupList, PeriodicIncrementalCheckpoint.class, null, -1);
+                break;
+            case "pdifferential":
+                p = new Primary(backupList, PeriodicDifferentialCheckpoint.class, null, -1);
                 break;
         }
     }

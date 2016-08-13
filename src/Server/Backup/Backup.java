@@ -16,7 +16,6 @@ import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Created by Berkin GÜLER (bguler15@ku.edu.tr) on 08.03.2016.
@@ -89,13 +88,13 @@ public class Backup {
             System.out.println("Built system state size: " + this.keyValueStore.getKeysValues().size());
             this.checkpointList.clear();
         } else if (checkpointType.equals(IncrementalCheckpoint.class) || checkpointType.equals(PeriodicIncrementalCheckpoint.class)) {
-            Map<String, String> builtSystemState = new HashMap<>();
+            byte[] builtSystemState = new HashMap<>();
             for (Checkpoint checkpoint : this.checkpointList)
                 builtSystemState.putAll(checkpoint.getCheckpointData());
             System.out.println("Built system state size: " + builtSystemState.size());
             keyValueStore.restoreCheckpoint(builtSystemState);
         } else if (checkpointType.equals(DifferentialCheckpoint.class) || checkpointType.equals(DifferentialCheckpoint.class)) {
-            Map<String, String> builtSystemState = new HashMap<>();
+            byte[] builtSystemState = new HashMap<>();
             Checkpoint first = this.checkpointList.get(0);
             Checkpoint last = this.checkpointList.get(this.checkpointList.size() - 1);
             builtSystemState.putAll(first.getCheckpointData());
@@ -140,6 +139,8 @@ public class Backup {
                     } else if (incoming instanceof Checkpoint) {
                         Checkpoint checkpoint = (Checkpoint) incoming;
                         System.out.println("We have a new checkpoint request...");
+                        if (checkpointType.equals(FullCheckpoint.class) || checkpointType.equals(PeriodicCheckpoint.class))
+                            checkpointList.clear();
                         System.out.print("Adding it to the checkpoint list...");
                         checkpointList.add(checkpoint);
                         System.out.println("OK");
