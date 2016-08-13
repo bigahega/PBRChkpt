@@ -11,6 +11,6 @@ public class PeriodicCheckpoint extends Checkpoint {
         this.checkpointData = this.mapToByteArray(checkpointData);
     }
 
-    public PeriodicCheckpoint() {
+    PeriodicCheckpoint() {
     }
 }

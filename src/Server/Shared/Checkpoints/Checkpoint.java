@@ -11,13 +11,13 @@ import java.util.Map;
  */
 public abstract class Checkpoint implements Serializable {
 
-    protected byte[] checkpointData;
+    byte[] checkpointData;
 
     public byte[] getCheckpointData() {
         return this.checkpointData;
     }
 
-    protected byte[] mapToByteArray(Map<String, String> map) {
+    byte[] mapToByteArray(Map<String, String> map) {
         byte[] result = null;
 
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
