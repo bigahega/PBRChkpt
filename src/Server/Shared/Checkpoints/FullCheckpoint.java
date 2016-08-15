@@ -8,6 +8,6 @@ import java.util.Map;
 public class FullCheckpoint extends Checkpoint {
 
     public FullCheckpoint(Map<String, String> checkpointData) {
-        this.checkpointData = this.mapToByteArray(checkpointData);
+        this.checkpointData = CheckpointUtils.mapToByteArray(checkpointData);
     }
 }

@@ -17,18 +17,4 @@ public abstract class Checkpoint implements Serializable {
         return this.checkpointData;
     }
 
-    byte[] mapToByteArray(Map<String, String> map) {
-        byte[] result = null;
-
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-             ObjectOutputStream oos = new ObjectOutputStream(baos)) {
-            oos.writeObject(map);
-            result = baos.toByteArray();
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
-
-        return result;
-    }
-
 }

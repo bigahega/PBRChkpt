@@ -1,14 +1,17 @@
 package Server.Shared;
 
+import Server.Shared.Checkpoints.CheckpointUtils;
+
 import java.io.Serializable;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by Berkin GÜLER (bguler15@ku.edu.tr) on 10.03.2016.
  */
 public class KeyValueStore implements Serializable {
 
-    private byte[] keysValues;
+    private Map<String, String> keysValues;
 
     public KeyValueStore()
     {
@@ -25,11 +28,11 @@ public class KeyValueStore implements Serializable {
         return this.keysValues.get(key);
     }
 
-    public byte[] getKeysValues() {
+    public Map<String, String> getKeysValues() {
         return this.keysValues;
     }
 
-    public void restoreCheckpoint(byte[] checkpoint) {
+    public void restoreCheckpoint(Map<String, String> checkpoint) {
         this.keysValues = checkpoint;
     }
 

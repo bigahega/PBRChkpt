@@ -6,12 +6,14 @@ import Server.Shared.ExchangeObjects.RequestType;
 import Server.Shared.ExchangeObjects.Response;
 import Server.Shared.ExchangeObjects.ResponseType;
 import Server.Shared.KeyValueStore;
+import org.apache.commons.io.output.CountingOutputStream;
 
 import java.io.*;
 import java.lang.reflect.Type;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +39,9 @@ public class Primary {
     private ReadWriteLock keyValueStoreReadWriteLock = new ReentrantReadWriteLock(true);
     private ReadWriteLock actionCountReadWriteLock = new ReentrantReadWriteLock(true);
     private int actionCount = 0;
+    private FileWriter fileWriter;
+    private BufferedWriter bufferedWriter;
+    private PrintWriter printWriter;
 
     public Primary(List<String> serverList, Type checkpointType, String db_path, int db_size) {
         this(serverList, checkpointType, db_path, db_size, null);
@@ -70,8 +75,18 @@ public class Primary {
                 ex.printStackTrace();
             }
         }
+
+        try {
+            this.fileWriter = new FileWriter("primary_log.txt");
+            this.bufferedWriter = new BufferedWriter(fileWriter);
+            this.printWriter = new PrintWriter(bufferedWriter);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+
         this.initalSystemState = new HashMap<>(keyValueStore.getKeysValues());
         this.previousSystemState = new HashMap<>();
+
         try {
             System.out.println("Initial DB size: " + keyValueStore.getKeysValues().size());
             this.listenerSocket = new ServerSocket(this.primaryPort);
@@ -138,7 +153,7 @@ public class Primary {
         System.out.print("Trying to get a write-lock...");
         keyValueStoreReadWriteLock.writeLock().lock();
         System.out.println("Done.");
-        byte[] currentSystemState = new HashMap<>(keyValueStore.getKeysValues());
+        Map<String, String> currentSystemState = this.keyValueStore.getKeysValues();
         Checkpoint checkpoint;
         if (this.checkpointType.equals(FullCheckpoint.class))
             checkpoint = new FullCheckpoint(currentSystemState);
@@ -148,6 +163,8 @@ public class Primary {
             checkpoint = new IncrementalCheckpoint(currentSystemState, this.previousSystemState);
         else if (this.checkpointType.equals(PeriodicIncrementalCheckpoint.class))
             checkpoint = new PeriodicIncrementalCheckpoint(currentSystemState, this.previousSystemState);
+        else if (this.checkpointType.equals(CompressedPeriodicIncrementalCheckpoint.class))
+            checkpoint = new CompressedPeriodicIncrementalCheckpoint(currentSystemState, this.previousSystemState);
         else if (this.checkpointType.equals(DifferentialCheckpoint.class))
             if (checkpoint_count == 0)
                 checkpoint = new DifferentialCheckpoint(new HashMap<>(), currentSystemState);
@@ -162,11 +179,13 @@ public class Primary {
             return;
 
         long start = System.nanoTime();
+        ArrayList<Long> sizes = new ArrayList<>();
         this.serverList.parallelStream().forEach(backupServer -> {
             try {
                 System.out.println("Connecting to backup server: " + backupServer);
                 Socket connectionToBackupServer = new Socket(backupServer, this.backupPort);
-                ObjectOutput outputToBackupServer = new ObjectOutputStream(connectionToBackupServer.getOutputStream());
+                CountingOutputStream counterStream = new CountingOutputStream(connectionToBackupServer.getOutputStream());
+                ObjectOutput outputToBackupServer = new ObjectOutputStream(counterStream);
                 System.out.println("Sending the checkpoint object to backup server: " + backupServer);
                 outputToBackupServer.writeObject(checkpoint);
                 ObjectInput inputFromBackupServer = new ObjectInputStream(connectionToBackupServer.getInputStream());
@@ -174,7 +193,9 @@ public class Primary {
                 if (!response.getResponseType().equals(ResponseType.ACK))
                     throw new IllegalStateException("Incorrect checkpoint response from server: " + backupServer);
                 System.out.println("Backup server " + backupServer + " accepted the checkpoint.");
+                sizes.add(counterStream.getByteCount());
                 outputToBackupServer.close();
+                counterStream.close();
                 inputFromBackupServer.close();
                 connectionToBackupServer.close();
             } catch (Exception ex) {
@@ -184,6 +205,8 @@ public class Primary {
         long end = System.nanoTime();
         checkpoint_count++;
         checkpoint_delay += (end - start) / 1000000;
+        this.printWriter.println(String.format("%d\t%d\t%d\t%d", checkpoint_count, (end - start) / 1000000, checkpoint_delay / checkpoint_count, sizes.get(0)));
+        sizes.clear();
         System.out.println("Checkpoint size is: " + sizeof(checkpoint) + "bytes");
         System.out.println("Checkpointing process delayed " + (end - start) / 1000000 + "ms");
         System.out.println("Average checkpoint delay: " + checkpoint_delay / checkpoint_count + "ms");
@@ -224,6 +247,9 @@ public class Primary {
                                     ex.printStackTrace();
                                 }
                             });
+                            printWriter.close();
+                            bufferedWriter.close();
+                            fileWriter.close();
                             System.exit(0);
                             break;
                         }

@@ -16,7 +16,7 @@ public class IncrementalCheckpoint extends Checkpoint {
             else if (!previousSystemState.get(key).equals(currentSystemState.get(key)))
                 difference.put(key, currentSystemState.get(key));
 
-        this.checkpointData = this.mapToByteArray(difference);
+        this.checkpointData = CheckpointUtils.mapToByteArray(difference);
     }
 
 }

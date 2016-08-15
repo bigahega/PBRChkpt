@@ -36,6 +36,9 @@ public class TestPrimary {
             case "pincremental":
                 p = new Primary(backupList, PeriodicIncrementalCheckpoint.class, null, -1);
                 break;
+            case "cpincremental":
+                p = new Primary(backupList, CompressedPeriodicIncrementalCheckpoint.class, null, -1);
+                break;
             case "pdifferential":
                 p = new Primary(backupList, PeriodicDifferentialCheckpoint.class, null, -1);
                 break;

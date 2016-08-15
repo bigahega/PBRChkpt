@@ -3,6 +3,7 @@ package Test;
 import Server.Shared.ExchangeObjects.Request;
 import Server.Shared.ExchangeObjects.RequestType;
 import Server.Shared.ExchangeObjects.Response;
+import org.apache.commons.io.output.FileWriterWithEncoding;
 import org.javatuples.Pair;
 
 import java.io.*;
@@ -21,6 +22,7 @@ public class TestClient {
 
     public static void main(String[] args) throws Exception {
         String filename = args[0];
+        int max_req_limit = Integer.parseInt(args[1]);
         try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -35,68 +37,47 @@ public class TestClient {
         } catch (IOException ex) {
             ex.printStackTrace();
         }
-        System.out.println("Reading finished");
+
         Socket clientSocket = new Socket("mars.planetlab.haw-hamburg.de", 1881);
         ObjectOutput objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
         ObjectInput objectInput = new ObjectInputStream(clientSocket.getInputStream());
+
+        FileWriter fileWriter = new FileWriter("client_log.txt");
+        BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
+        PrintWriter printWriter = new PrintWriter(bufferedWriter);
+
         int i = 0;
-        dblooper:
         for (String key : db.keySet()) {
-            boolean next = false;
-            while (!next) {
-                try {
-                    //if (i <= 60000) {
-                    //    i++;
-                    //    continue;
-                    //}
-                    if (req_count >= 10000) {
-                        objectOutput.writeObject(0xDEADBABA);
-                        break dblooper;
-                    }
-
-                    if (!clientSocket.isConnected()) {
-                        System.out.println("Connnecting to primary...");
-                        clientSocket = new Socket("mars.planetlab.haw-hamburg.de", 1881);
-                        objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
-                        System.out.println("streams created");
-                    }
-
-                    long start = System.nanoTime();
-                    System.out.println("creating request");
-                    Request request = new Request(RequestType.PUSH, new Pair<>(key, db.get(key)));
-                    objectOutput.writeObject(request);
-                    System.out.println("object written");
-                    if (!clientSocket.isConnected())
-                        objectInput = new ObjectInputStream(clientSocket.getInputStream());
-                    Response response;
-                    response = (Response) objectInput.readObject();
-                    System.out.println(response.getResponseValue());
-                    long end = System.nanoTime();
-                    req_count++;
-                    average_delay += (end - start) / 1000000.f;
-                    System.out.println("Request delay: " + (float) (end - start) / 1000000.f + "ms");
-                    System.out.println("Average delay: " + average_delay / req_count + "ms");
-                    System.out.println("Req count: " + req_count);
-                    next = true;
-                } catch (EOFException ex) {
-                    System.out.println("Streams sucked up...");
-                    Thread.sleep(100);
-                } catch (StreamCorruptedException ex) {
-                    System.out.println("Streams sucked up...");
-                    clientSocket = new Socket("mars.planetlab.haw-hamburg.de", 1881);
-                    objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
-                    objectInput = new ObjectInputStream(clientSocket.getInputStream());
-                    Thread.sleep(100);
-                } catch (SocketException ex) {
-                    System.out.println("Socket sucked up...Trying to reboot it...");
-                    clientSocket = new Socket("mars.planetlab.haw-hamburg.de", 1881);
-                    objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
-                    objectInput = new ObjectInputStream(clientSocket.getInputStream());
-                    Thread.sleep(100);
+            try {
+                if (req_count >= max_req_limit) {
+                    objectOutput.writeObject(0xDEADBABA);
+                    break;
                 }
+
+                long start = System.nanoTime();
+                Request request = new Request(RequestType.PUSH, new Pair<>(key, db.get(key)));
+                objectOutput.writeObject(request);
+
+                Response response;
+                response = (Response) objectInput.readObject();
+                System.out.println(response.getResponseValue());
+                long end = System.nanoTime();
+
+                req_count++;
+                average_delay += (end - start) / 1000000.f;
+                float req_delay = (float) (end - start) / 1000000.f;
+                printWriter.println(String.format("%d\t%f\t%f", req_count, req_delay, average_delay / req_count));
+
+            } catch (EOFException | StreamCorruptedException ex) {
+                System.out.println("Streams sucked up...");
+            } catch (SocketException ex) {
+                System.out.println("Socket sucked up...Trying to reboot it...");
             }
         }
-        System.out.println("DONE");
+        printWriter.close();
+        bufferedWriter.close();
+        fileWriter.close();
+
         objectInput.close();
         objectOutput.close();
         clientSocket.close();
