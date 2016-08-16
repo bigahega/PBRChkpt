@@ -12,7 +12,6 @@ import java.io.*;
 import java.lang.reflect.Type;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -150,7 +149,10 @@ public class Backup {
                         System.out.print("Adding it to the checkpoint list...");
                         checkpointList.add(checkpoint);
                         System.out.println("OK");
-                        System.out.println("Checkpoint data count: " + CheckpointUtils.byteArrayToMap(checkpoint.getCheckpointData()).keySet().size());
+                        if (checkpointType.equals(CompressedPeriodicIncrementalCheckpoint.class))
+                            System.out.println("Checkpoint data count: " + CheckpointUtils.compressedByteArrayToMap(checkpoint.getCheckpointData()).keySet().size());
+                        else
+                            System.out.println("Checkpoint data count: " + CheckpointUtils.byteArrayToMap(checkpoint.getCheckpointData()).keySet().size());
                         ObjectOutput responseToPrimary = new ObjectOutputStream(this.client.getOutputStream());
                         Response response = new Response(ResponseType.ACK);
                         System.out.println("ACK is sent!");
