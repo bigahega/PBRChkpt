@@ -261,8 +261,7 @@ public class Primary {
                         actionCountReadWriteLock.writeLock().lock();
                         actionCount++;
                         actionCountReadWriteLock.writeLock().unlock();
-                        if (!checkpointType.equals(PeriodicCheckpoint.class) && !checkpointType.equals(PeriodicDifferentialCheckpoint.class)
-                                && !checkpointType.equals(PeriodicIncrementalCheckpoint.class))
+                        if (!checkpointType.getTypeName().contains("Periodic"))
                             checkpoint();
                         else {
                             actionCountReadWriteLock.writeLock().lock();

@@ -1,6 +1,7 @@
 package Server.Shared.Checkpoints;
 
 import java.io.*;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -63,6 +64,8 @@ public class CheckpointUtils {
 
     @SuppressWarnings("unchecked")
     public static Map<String, String> byteArrayToMap(byte[] byteArray) {
+        if (byteArray == null || byteArray.length == 0)
+            return new HashMap<>();
         Map<String, String> result = null;
 
         try (ByteArrayInputStream bais = new ByteArrayInputStream(byteArray);

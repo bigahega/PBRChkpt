@@ -16,7 +16,7 @@ public class DifferentialCheckpoint extends Checkpoint {
             else if (!initialSystemState.get(key).equals(currentSystemState.get(key)))
                 difference.put(key, currentSystemState.get(key));
 
-        CheckpointUtils.mapToByteArray(difference);
+        this.checkpointData = CheckpointUtils.mapToByteArray(difference);
     }
 
 }

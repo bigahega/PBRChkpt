@@ -12,6 +12,7 @@ import java.io.*;
 import java.lang.reflect.Type;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -101,7 +102,7 @@ public class Backup {
         } else if (checkpointType.equals(DifferentialCheckpoint.class) || checkpointType.equals(DifferentialCheckpoint.class)) {
             Map<String, String> builtSystemState = new HashMap<>();
             Checkpoint first = this.checkpointList.get(0);
-            Checkpoint last = this.checkpointList.get(this.checkpointList.size() - 1);
+            Checkpoint last = this.checkpointList.get(1);
             builtSystemState.putAll(CheckpointUtils.byteArrayToMap(first.getCheckpointData()));
             builtSystemState.putAll(CheckpointUtils.byteArrayToMap(last.getCheckpointData()));
             System.out.println("Built system state size: " + builtSystemState.size());
@@ -146,9 +147,17 @@ public class Backup {
                         System.out.println("We have a new checkpoint request...");
                         if (checkpointType.equals(FullCheckpoint.class) || checkpointType.equals(PeriodicCheckpoint.class))
                             checkpointList.clear();
+                        else if (checkpointType.equals(DifferentialCheckpoint.class)) {
+                            if (checkpointList.size() > 0) {
+                                Checkpoint initial = checkpointList.get(0);
+                                checkpointList.clear();
+                                checkpointList.add(initial);
+                            }
+                        }
                         System.out.print("Adding it to the checkpoint list...");
                         checkpointList.add(checkpoint);
                         System.out.println("OK");
+
                         if (checkpointType.equals(CompressedPeriodicIncrementalCheckpoint.class))
                             System.out.println("Checkpoint data count: " + CheckpointUtils.compressedByteArrayToMap(checkpoint.getCheckpointData()).keySet().size());
                         else
@@ -160,7 +169,7 @@ public class Backup {
                         responseToPrimary.close();
                     }
                 }
-            } catch (EOFException ex) {
+            } catch (EOFException | SocketException ex) {
                 //asdfafsd
             } catch (Exception ex) {
                 ex.printStackTrace();
