@@ -1,7 +1,5 @@
 package Server.Shared;
 
-import Server.Shared.Checkpoints.CheckpointUtils;
-
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -11,28 +9,28 @@ import java.util.Map;
  */
 public class KeyValueStore implements Serializable {
 
-    private Map<String, String> keysValues;
+    private Map<String, Map<String, String>> keysValues;
 
     public KeyValueStore()
     {
         this.keysValues = new HashMap<>();
     }
 
-    public void put(String key, String Value)
+    public void put(String key, Map<String, String> Value)
     {
         this.keysValues.put(key, Value);
     }
 
-    public String get(String key)
+    public Map<String, String> get(String key)
     {
         return this.keysValues.get(key);
     }
 
-    public Map<String, String> getKeysValues() {
+    public Map<String, Map<String, String>> getKeysValues() {
         return this.keysValues;
     }
 
-    public void restoreCheckpoint(Map<String, String> checkpoint) {
+    public void restoreCheckpoint(Map<String, Map<String, String>> checkpoint) {
         this.keysValues = checkpoint;
     }
 

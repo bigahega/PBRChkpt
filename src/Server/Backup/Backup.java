@@ -84,23 +84,21 @@ public class Backup {
         Type checkpointType = this.checkpointList.get(0).getClass();
         long startRestore = System.nanoTime();
         System.out.println("Found checkpoint type: " + checkpointType.getTypeName());
+        Map<String, Map<String, String>> builtSystemState = new HashMap<>();
         if (checkpointType.equals(FullCheckpoint.class) || checkpointType.equals(PeriodicCheckpoint.class)) {
             keyValueStore.restoreCheckpoint(CheckpointUtils.byteArrayToMap(this.checkpointList.get(this.checkpointList.size() - 1).getCheckpointData()));
             System.out.println("Built system state size: " + this.keyValueStore.getKeysValues().size());
             this.checkpointList.clear();
         } else if (checkpointType.equals(IncrementalCheckpoint.class) || checkpointType.equals(PeriodicIncrementalCheckpoint.class)) {
-            Map<String, String> builtSystemState = new HashMap<>();
             for (Checkpoint checkpoint : this.checkpointList)
                 builtSystemState.putAll(CheckpointUtils.byteArrayToMap(checkpoint.getCheckpointData()));
             System.out.println("Built system state size: " + builtSystemState.size());
             keyValueStore.restoreCheckpoint(builtSystemState);
         } else if(checkpointType.equals(CompressedPeriodicIncrementalCheckpoint.class)) {
-            Map<String, String> builtSystemState = new HashMap<>();
             for(Checkpoint checkpoint : this.checkpointList)
                 builtSystemState.putAll(CheckpointUtils.compressedByteArrayToMap(checkpoint.getCheckpointData()));
             System.out.println("Built system state size: " + builtSystemState.size());
         } else if (checkpointType.equals(DifferentialCheckpoint.class) || checkpointType.equals(DifferentialCheckpoint.class)) {
-            Map<String, String> builtSystemState = new HashMap<>();
             Checkpoint first = this.checkpointList.get(0);
             Checkpoint last = this.checkpointList.get(1);
             builtSystemState.putAll(CheckpointUtils.byteArrayToMap(first.getCheckpointData()));
@@ -133,7 +131,7 @@ public class Backup {
                         }
                     } else if (incoming instanceof Request) {
                         Request request = (Request) incoming;
-                        if (request.getRequestType().equals(RequestType.PULL) || request.getRequestType().equals(RequestType.PUSH)) {
+                        if (request.getRequestType().equals(RequestType.SELECT) || request.getRequestType().equals(RequestType.UPDATE)) {
                             System.out.println("Primary is dead! I am the new Primary!");
                             Response response = takeover(request);
                             ObjectOutput responseToClient = new ObjectOutputStream(this.client.getOutputStream());

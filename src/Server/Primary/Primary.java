@@ -33,8 +33,8 @@ public class Primary {
     private KeyValueStore keyValueStore = null;
     private ServerSocket listenerSocket;
     private List<String> serverList;
-    private Map<String, String> initalSystemState;
-    private Map<String, String> previousSystemState;
+    private Map<String, Map<String, String>> initalSystemState;
+    private Map<String, Map<String, String>> previousSystemState;
     private Type checkpointType;
     private ReadWriteLock keyValueStoreReadWriteLock = new ReentrantReadWriteLock(true);
     private ReadWriteLock actionCountReadWriteLock = new ReentrantReadWriteLock(true);
@@ -65,8 +65,11 @@ public class Primary {
                 while ((line = reader.readLine()) != null && keyValueStore.getKeysValues().size() <= db_size) {
                     try {
                         String[] matches = line.split("\t");
-                        if (!matches[0].equalsIgnoreCase("\\") && Integer.parseInt(matches[0]) > 0 && matches[1].length() > 1)
-                            keyValueStore.put(matches[0], matches[1]);
+                        if (!matches[0].equalsIgnoreCase("\\") && Integer.parseInt(matches[0]) > 0 && matches[1].length() > 1) {
+                            Map<String, String> values = new HashMap<>();
+                            values.put("val", matches[1]);
+                            keyValueStore.put(matches[0], values);
+                        }
                     } catch (Exception ex2) {
                         ex2.printStackTrace();
                     }
@@ -121,24 +124,23 @@ public class Primary {
         Response response = null;
         RequestType requestType = request.getRequestType();
         String requestedKey = request.getKey();
-        if (requestType.equals(RequestType.PULL)) {
-            System.out.println("It is a PULL request.");
+        if (requestType.equals(RequestType.SELECT)) {
+            System.out.println("It is a SELECT request.");
             System.out.print("Trying to get a read-lock...");
             keyValueStoreReadWriteLock.readLock().lock();
             System.out.println("Done.");
             String value;
-            value = keyValueStore.get(requestedKey);
+            value = keyValueStore.get(requestedKey).get("val");
             response = new Response(value);
             System.out.print("Releasing the read-lock...");
             keyValueStoreReadWriteLock.readLock().unlock();
             System.out.println("Done.");
-        } else if (requestType.equals(RequestType.PUSH)) {
-            System.out.println("It is a PUSH request.");
+        } else if (requestType.equals(RequestType.UPDATE)) {
+            System.out.println("It is a UPDATE request.");
             System.out.print("Trying to get a write-lock...");
             keyValueStoreReadWriteLock.writeLock().lock();
             System.out.println("Done.");
-            String value = request.getValue();
-            keyValueStore.put(requestedKey, value);
+            keyValueStore.put(requestedKey, request.getValue());
             response = new Response("OK");
             System.out.print("Releasing the write-lock...");
             keyValueStoreReadWriteLock.writeLock().unlock();
@@ -153,7 +155,7 @@ public class Primary {
         System.out.print("Trying to get a write-lock...");
         keyValueStoreReadWriteLock.writeLock().lock();
         System.out.println("Done.");
-        Map<String, String> currentSystemState = this.keyValueStore.getKeysValues();
+        Map<String, Map<String, String>> currentSystemState = this.keyValueStore.getKeysValues();
         Checkpoint checkpoint;
         if (this.checkpointType.equals(FullCheckpoint.class))
             checkpoint = new FullCheckpoint(currentSystemState);

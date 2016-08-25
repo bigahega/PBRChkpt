@@ -3,13 +3,12 @@ package Test;
 import Server.Shared.ExchangeObjects.Request;
 import Server.Shared.ExchangeObjects.RequestType;
 import Server.Shared.ExchangeObjects.Response;
-import org.apache.commons.io.output.FileWriterWithEncoding;
-import org.javatuples.Pair;
 
 import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by bguler on 4/25/16.
@@ -55,7 +54,9 @@ public class TestClient {
                 }
 
                 long start = System.nanoTime();
-                Request request = new Request(RequestType.PUSH, new Pair<>(key, db.get(key)));
+                Map<String, String> values = new HashMap<>();
+                values.put("val", db.get(key));
+                Request request = new Request(RequestType.UPDATE, key, values);
                 objectOutput.writeObject(request);
 
                 Response response;

@@ -1,8 +1,7 @@
 package Server.Shared.ExchangeObjects;
 
-import org.javatuples.Pair;
-
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * Created by Berkin GÜLER (bguler15@ku.edu.tr) on 28.03.2016.
@@ -10,17 +9,14 @@ import java.io.Serializable;
 public class Request implements Serializable {
 
     private final RequestType requestType;
-    private final Object data;
     private String key;
-    private String value;
+    private Map<String, String> values;
 
-    public Request(RequestType requestType, Object data) {
+    public Request(RequestType requestType, String key, Map<String, String> vals) {
         this.requestType = requestType;
-        this.data = data;
         if (!requestType.equals(RequestType.CHECKPOINT)) {
-            Pair<String, String> keyValue = (Pair<String, String>) data;
-            this.key = keyValue.getValue0();
-            this.value = keyValue.getValue1();
+            this.key = key;
+            this.values = vals;
         }
     }
 
@@ -32,12 +28,8 @@ public class Request implements Serializable {
         return this.key;
     }
 
-    public String getValue() {
-        return this.value;
-    }
-
-    public Object getData() {
-        return this.data;
+    public Map<String, String> getValue() {
+        return this.values;
     }
 
 }

@@ -11,7 +11,7 @@ import java.util.zip.GZIPOutputStream;
  */
 public class CheckpointUtils {
 
-    public static byte[] mapToCompressedByteArray(Map<String, String> map) {
+    public static byte[] mapToCompressedByteArray(Map<String, Map<String, String>> map) {
         byte[] result = null;
 
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -42,8 +42,8 @@ public class CheckpointUtils {
     }
 
     @SuppressWarnings("unchecked")
-    public static Map<String, String> compressedByteArrayToMap(byte[] compressedByteArray) {
-        Map<String, String> result = null;
+    public static Map<String, Map<String, String>> compressedByteArrayToMap(byte[] compressedByteArray) {
+        Map<String, Map<String, String>> result = null;
 
         try (ByteArrayInputStream bais = new ByteArrayInputStream(compressedByteArray);
              GZIPInputStream gis = new GZIPInputStream(bais);
@@ -51,7 +51,7 @@ public class CheckpointUtils {
 
             Object incomingObj = ois.readObject();
             if (incomingObj instanceof Map)
-                result = (Map<String, String>) incomingObj;
+                result = (Map<String, Map<String, String>>) incomingObj;
             else
                 throw new Exception("Incoming object is not a Map<String,String>");
 
@@ -63,16 +63,16 @@ public class CheckpointUtils {
     }
 
     @SuppressWarnings("unchecked")
-    public static Map<String, String> byteArrayToMap(byte[] byteArray) {
+    public static Map<String, Map<String, String>> byteArrayToMap(byte[] byteArray) {
         if (byteArray == null || byteArray.length == 0)
             return new HashMap<>();
-        Map<String, String> result = null;
+        Map<String, Map<String, String>> result = null;
 
         try (ByteArrayInputStream bais = new ByteArrayInputStream(byteArray);
             ObjectInputStream ois = new ObjectInputStream(bais);) {
             Object incomingObj = ois.readObject();
             if(incomingObj instanceof Map)
-                result = (Map<String, String>) incomingObj;
+                result = (Map<String, Map<String, String>>) incomingObj;
             else
                 throw new Exception("Incoming object is not a Map<String, String>");
         } catch (Exception ex) {
@@ -82,7 +82,7 @@ public class CheckpointUtils {
         return result;
     }
 
-    public static byte[] mapToByteArray(Map<String, String> map) {
+    public static byte[] mapToByteArray(Map<String, Map<String, String>> map) {
         byte[] result = null;
 
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
