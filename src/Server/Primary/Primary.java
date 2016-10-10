@@ -129,8 +129,8 @@ public class Primary {
             System.out.print("Trying to get a read-lock...");
             keyValueStoreReadWriteLock.readLock().lock();
             System.out.println("Done.");
-            String value;
-            value = keyValueStore.get(requestedKey).get("val");
+            Map<String, String> value;
+            value = keyValueStore.get(requestedKey);
             response = new Response(value);
             System.out.print("Releasing the read-lock...");
             keyValueStoreReadWriteLock.readLock().unlock();
@@ -141,7 +141,7 @@ public class Primary {
             keyValueStoreReadWriteLock.writeLock().lock();
             System.out.println("Done.");
             keyValueStore.put(requestedKey, request.getValue());
-            response = new Response("OK");
+            response = new Response(ResponseType.ACK);
             System.out.print("Releasing the write-lock...");
             keyValueStoreReadWriteLock.writeLock().unlock();
             System.out.println("Done.");
@@ -263,15 +263,17 @@ public class Primary {
                         actionCountReadWriteLock.writeLock().lock();
                         actionCount++;
                         actionCountReadWriteLock.writeLock().unlock();
-                        if (!checkpointType.getTypeName().contains("Periodic"))
-                            checkpoint();
-                        else {
-                            actionCountReadWriteLock.writeLock().lock();
-                            if (actionCount % CHECKPOINT_PERIOD == 0) {
+                        if (actionCount > 1000 && request.getRequestType().equals(RequestType.UPDATE)) {
+                            if (!checkpointType.getTypeName().contains("Periodic"))
                                 checkpoint();
-                                actionCount = 0;
+                            else {
+                                actionCountReadWriteLock.writeLock().lock();
+                                if (actionCount % CHECKPOINT_PERIOD == 0) {
+                                    checkpoint();
+                                    actionCount = 0;
+                                }
+                                actionCountReadWriteLock.writeLock().unlock();
                             }
-                            actionCountReadWriteLock.writeLock().unlock();
                         }
                         output.writeObject(response);
                     } else
