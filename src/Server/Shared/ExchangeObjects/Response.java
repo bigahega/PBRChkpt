@@ -1,17 +1,18 @@
 package Server.Shared.ExchangeObjects;
 
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * Created by Berkin GÜLER (bguler15@ku.edu.tr) on 28.03.2016.
  */
 public class Response implements Serializable {
 
-    private String responseValue;
+    private Map<String, String> responseValue;
 
     private ResponseType responseType;
 
-    public Response(String responseValue) {
+    public Response(Map<String, String> responseValue) {
         this.responseValue = responseValue;
     }
 
@@ -19,7 +20,7 @@ public class Response implements Serializable {
         this.responseType = responseType;
     }
 
-    public String getResponseValue() {
+    public Map<String, String> getResponseValue() {
         return this.responseValue;
     }
 
