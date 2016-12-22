@@ -16,7 +16,7 @@ public class TestPrimary {
 
     public static void main(String[] args) {
         backupList.add("planetlab3.rutgers.edu");
-        backupList.add("saturn.planetlab.carleton.ca");
+        backupList.add("planetlab1.cesnet.cz");
         backupList.add("planetlab01.cs.washington.edu");
         //Primary p = new Primary(backupList, FullCheckpoint.class, "/home/ku_distributed/db.txt", 50000);
         Primary p;
@@ -38,6 +38,9 @@ public class TestPrimary {
                 break;
             case "cpincremental":
                 p = new Primary(backupList, CompressedPeriodicIncrementalCheckpoint.class, null, -1);
+                break;
+            case "cpi":
+                p = new Primary(backupList, CompressedPeriodicCheckpoint.class, null, -1);
                 break;
             case "pdifferential":
                 p = new Primary(backupList, PeriodicDifferentialCheckpoint.class, null, -1);

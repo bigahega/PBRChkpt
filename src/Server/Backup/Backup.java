@@ -12,6 +12,7 @@ import java.io.*;
 import java.lang.reflect.Type;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -96,7 +97,7 @@ public class Backup {
         } else if(checkpointType.equals(CompressedPeriodicIncrementalCheckpoint.class)) {
             Map<String, String> builtSystemState = new HashMap<>();
             for(Checkpoint checkpoint : this.checkpointList)
-                builtSystemState.putAll(CheckpointUtils.compressedByteArrayToMap(checkpoint.getCheckpointData()));
+                builtSystemState.putAll(CheckpointUtils.GZIPcompressedByteArrayToMap(checkpoint.getCheckpointData()));
             System.out.println("Built system state size: " + builtSystemState.size());
         } else if (checkpointType.equals(DifferentialCheckpoint.class) || checkpointType.equals(DifferentialCheckpoint.class)) {
             Map<String, String> builtSystemState = new HashMap<>();
@@ -122,7 +123,9 @@ public class Backup {
 
         @Override
         public void run() {
-            try (ObjectInput input = new ObjectInputStream(this.client.getInputStream())) {
+            try {
+                ObjectInput input = new ObjectInputStream(this.client.getInputStream());
+                ObjectOutput output = new ObjectOutputStream(this.client.getOutputStream());
                 while (true) {
                     Object incoming = input.readObject();
                     if (incoming instanceof Integer) {
@@ -135,9 +138,8 @@ public class Backup {
                         if (request.getRequestType().equals(RequestType.PULL) || request.getRequestType().equals(RequestType.PUSH)) {
                             System.out.println("Primary is dead! I am the new Primary!");
                             Response response = takeover(request);
-                            ObjectOutput responseToClient = new ObjectOutputStream(this.client.getOutputStream());
-                            responseToClient.writeObject(response);
-                            responseToClient.close();
+                            output.writeObject(response);
+                            output.close();
                             close();
                             break;
                         }
@@ -149,18 +151,13 @@ public class Backup {
                         System.out.print("Adding it to the checkpoint list...");
                         checkpointList.add(checkpoint);
                         System.out.println("OK");
-                        if (checkpointType.equals(CompressedPeriodicIncrementalCheckpoint.class))
-                            System.out.println("Checkpoint data count: " + CheckpointUtils.compressedByteArrayToMap(checkpoint.getCheckpointData()).keySet().size());
-                        else
-                            System.out.println("Checkpoint data count: " + CheckpointUtils.byteArrayToMap(checkpoint.getCheckpointData()).keySet().size());
-                        ObjectOutput responseToPrimary = new ObjectOutputStream(this.client.getOutputStream());
                         Response response = new Response(ResponseType.ACK);
                         System.out.println("ACK is sent!");
-                        responseToPrimary.writeObject(response);
-                        responseToPrimary.close();
+                        output.writeObject(response);
+                        output.close();
                     }
                 }
-            } catch (EOFException ex) {
+            } catch (SocketException | EOFException ex) {
                 //asdfafsd
             } catch (Exception ex) {
                 ex.printStackTrace();

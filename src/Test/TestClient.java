@@ -3,7 +3,6 @@ package Test;
 import Server.Shared.ExchangeObjects.Request;
 import Server.Shared.ExchangeObjects.RequestType;
 import Server.Shared.ExchangeObjects.Response;
-import org.apache.commons.io.output.FileWriterWithEncoding;
 import org.javatuples.Pair;
 
 import java.io.*;
@@ -38,7 +37,7 @@ public class TestClient {
             ex.printStackTrace();
         }
 
-        Socket clientSocket = new Socket("mars.planetlab.haw-hamburg.de", 1881);
+        Socket clientSocket = new Socket("saturn.planetlab.carleton.ca", 1881);
         ObjectOutput objectOutput = new ObjectOutputStream(clientSocket.getOutputStream());
         ObjectInput objectInput = new ObjectInputStream(clientSocket.getInputStream());
 

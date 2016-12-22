@@ -17,8 +17,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Created by Berkin GÜLER (bguler15@ku.edu.tr) on 08.03.2016.
@@ -36,12 +36,11 @@ public class Primary {
     private Map<String, String> initalSystemState;
     private Map<String, String> previousSystemState;
     private Type checkpointType;
-    private ReadWriteLock keyValueStoreReadWriteLock = new ReentrantReadWriteLock(true);
-    private ReadWriteLock actionCountReadWriteLock = new ReentrantReadWriteLock(true);
-    private int actionCount = 0;
+    private AtomicInteger modificationCounter = new AtomicInteger(0);
     private FileWriter fileWriter;
     private BufferedWriter bufferedWriter;
     private PrintWriter printWriter;
+    private ReentrantLock checkpointLock = new ReentrantLock();
 
     public Primary(List<String> serverList, Type checkpointType, String db_path, int db_size) {
         this(serverList, checkpointType, db_path, db_size, null);
@@ -123,26 +122,14 @@ public class Primary {
         String requestedKey = request.getKey();
         if (requestType.equals(RequestType.PULL)) {
             System.out.println("It is a PULL request.");
-            System.out.print("Trying to get a read-lock...");
-            keyValueStoreReadWriteLock.readLock().lock();
-            System.out.println("Done.");
             String value;
             value = keyValueStore.get(requestedKey);
             response = new Response(value);
-            System.out.print("Releasing the read-lock...");
-            keyValueStoreReadWriteLock.readLock().unlock();
-            System.out.println("Done.");
         } else if (requestType.equals(RequestType.PUSH)) {
             System.out.println("It is a PUSH request.");
-            System.out.print("Trying to get a write-lock...");
-            keyValueStoreReadWriteLock.writeLock().lock();
-            System.out.println("Done.");
             String value = request.getValue();
             keyValueStore.put(requestedKey, value);
             response = new Response("OK");
-            System.out.print("Releasing the write-lock...");
-            keyValueStoreReadWriteLock.writeLock().unlock();
-            System.out.println("Done.");
         }
         return response;
     }
@@ -150,9 +137,6 @@ public class Primary {
     private void checkpoint() {
         System.out.println("Checkpointing is initializing...");
         System.out.println("Checkpoint Type is: " + this.checkpointType.getTypeName());
-        System.out.print("Trying to get a write-lock...");
-        keyValueStoreReadWriteLock.writeLock().lock();
-        System.out.println("Done.");
         Map<String, String> currentSystemState = this.keyValueStore.getKeysValues();
         Checkpoint checkpoint;
         if (this.checkpointType.equals(FullCheckpoint.class))
@@ -165,6 +149,8 @@ public class Primary {
             checkpoint = new PeriodicIncrementalCheckpoint(currentSystemState, this.previousSystemState);
         else if (this.checkpointType.equals(CompressedPeriodicIncrementalCheckpoint.class))
             checkpoint = new CompressedPeriodicIncrementalCheckpoint(currentSystemState, this.previousSystemState);
+        else if (this.checkpointType.equals(CompressedPeriodicCheckpoint.class))
+            checkpoint = new CompressedPeriodicCheckpoint(currentSystemState);
         else if (this.checkpointType.equals(DifferentialCheckpoint.class))
             if (checkpoint_count == 0)
                 checkpoint = new DifferentialCheckpoint(new HashMap<>(), currentSystemState);
@@ -186,9 +172,9 @@ public class Primary {
                 Socket connectionToBackupServer = new Socket(backupServer, this.backupPort);
                 CountingOutputStream counterStream = new CountingOutputStream(connectionToBackupServer.getOutputStream());
                 ObjectOutput outputToBackupServer = new ObjectOutputStream(counterStream);
+                ObjectInput inputFromBackupServer = new ObjectInputStream(connectionToBackupServer.getInputStream());
                 System.out.println("Sending the checkpoint object to backup server: " + backupServer);
                 outputToBackupServer.writeObject(checkpoint);
-                ObjectInput inputFromBackupServer = new ObjectInputStream(connectionToBackupServer.getInputStream());
                 Response response = (Response) inputFromBackupServer.readObject();
                 if (!response.getResponseType().equals(ResponseType.ACK))
                     throw new IllegalStateException("Incorrect checkpoint response from server: " + backupServer);
@@ -206,13 +192,11 @@ public class Primary {
         checkpoint_count++;
         checkpoint_delay += (end - start) / 1000000;
         this.printWriter.println(String.format("%d\t%d\t%d\t%d", checkpoint_count, (end - start) / 1000000, checkpoint_delay / checkpoint_count, sizes.get(0)));
+        this.printWriter.flush();
         sizes.clear();
-        System.out.println("Checkpoint size is: " + sizeof(checkpoint) + "bytes");
         System.out.println("Checkpointing process delayed " + (end - start) / 1000000 + "ms");
         System.out.println("Average checkpoint delay: " + checkpoint_delay / checkpoint_count + "ms");
         this.previousSystemState = new HashMap<>(currentSystemState);
-        System.out.println("Releasing the write-lock...");
-        keyValueStoreReadWriteLock.writeLock().unlock();
     }
 
     public void setKeyValueStore(KeyValueStore newKeyValueStore) {
@@ -229,10 +213,12 @@ public class Primary {
 
         @Override
         public void run() {
-            try (ObjectInput input = new ObjectInputStream(this.client.getInputStream())) {
+            try {
+                ObjectInput input = new ObjectInputStream(this.client.getInputStream());
                 ObjectOutput output = new ObjectOutputStream(this.client.getOutputStream());
                 while (true) {
                     Object incoming = input.readObject();
+                    while (checkpointLock.isLocked()) ;
                     if (incoming instanceof Integer) {
                         if ((int) incoming == 0xDEADBABA) {
                             System.out.println("It is a kill request. Bye!");
@@ -258,19 +244,18 @@ public class Primary {
                         Request request = (Request) incoming;
                         Response response = executeWorkRequest(request);
 
-                        actionCountReadWriteLock.writeLock().lock();
-                        actionCount++;
-                        actionCountReadWriteLock.writeLock().unlock();
-                        if (!checkpointType.equals(PeriodicCheckpoint.class) && !checkpointType.equals(PeriodicDifferentialCheckpoint.class)
-                                && !checkpointType.equals(PeriodicIncrementalCheckpoint.class))
-                            checkpoint();
-                        else {
-                            actionCountReadWriteLock.writeLock().lock();
-                            if (actionCount % CHECKPOINT_PERIOD == 0) {
+                        if (request.getRequestType().equals(RequestType.PUSH)) {
+                            if (!checkpointType.equals(PeriodicCheckpoint.class) && !checkpointType.equals(PeriodicDifferentialCheckpoint.class)
+                                    && !checkpointType.equals(PeriodicIncrementalCheckpoint.class) && !checkpointType.equals(CompressedPeriodicCheckpoint.class))
                                 checkpoint();
-                                actionCount = 0;
+                            else {
+                                if (modificationCounter.incrementAndGet() > 100000 && modificationCounter.get() % CHECKPOINT_PERIOD == 0) {
+                                    checkpointLock.lock();
+                                    checkpoint();
+                                    checkpointLock.unlock();
+                                    modificationCounter.set(0);
+                                }
                             }
-                            actionCountReadWriteLock.writeLock().unlock();
                         }
                         output.writeObject(response);
                     } else

@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="org.tukaani:xz:1.6" type="repository">
+    <properties maven-id="org.tukaani:xz:1.6" />
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/xz-1.6.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$PROJECT_DIR$/lib/xz-1.6-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES />
+  </library>
+</component>

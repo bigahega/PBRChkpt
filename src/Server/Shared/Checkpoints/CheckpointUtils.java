@@ -1,5 +1,8 @@
 package Server.Shared.Checkpoints;
 
+import org.tukaani.xz.LZMA2Options;
+import org.tukaani.xz.XZOutputStream;
+
 import java.io.*;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
@@ -10,7 +13,25 @@ import java.util.zip.GZIPOutputStream;
  */
 public class CheckpointUtils {
 
-    public static byte[] mapToCompressedByteArray(Map<String, String> map) {
+    public static byte[] mapToLZMA2ByteArray(Map<String, String> map) {
+        byte[] result = null;
+        byte[] data = mapToByteArray(map);
+
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            XZOutputStream xzOutputStream = new XZOutputStream(baos, new LZMA2Options(LZMA2Options.PRESET_MAX));
+            xzOutputStream.write(data);
+            xzOutputStream.close();
+            result = baos.toByteArray();
+            System.out.println("Compression ratio: " + (float) (result.length / data.length));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+
+        return result;
+    }
+
+    public static byte[] mapToGZIPByteArray(Map<String, String> map) {
         byte[] result = null;
 
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -26,7 +47,7 @@ public class CheckpointUtils {
         return result;
     }
 
-    public static byte[] compressByteArray(byte[] bytes) {
+    public static byte[] GZIPcompressByteArray(byte[] bytes) {
         byte[] result = null;
 
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -41,7 +62,7 @@ public class CheckpointUtils {
     }
 
     @SuppressWarnings("unchecked")
-    public static Map<String, String> compressedByteArrayToMap(byte[] compressedByteArray) {
+    public static Map<String, String> GZIPcompressedByteArrayToMap(byte[] compressedByteArray) {
         Map<String, String> result = null;
 
         try (ByteArrayInputStream bais = new ByteArrayInputStream(compressedByteArray);

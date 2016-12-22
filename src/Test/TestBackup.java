@@ -16,7 +16,7 @@ public class TestBackup {
 
     public static void main(String[] args) {
         backupList.add("planetlab3.rutgers.edu");
-        backupList.add("saturn.planetlab.carleton.ca");
+        backupList.add("planetlab1.cesnet.cz");
         backupList.add("planetlab01.cs.washington.edu");
         Backup b;
         switch (args[0]) {
@@ -37,6 +37,9 @@ public class TestBackup {
                 break;
             case "cpincremental":
                 b = new Backup(backupList, CompressedPeriodicIncrementalCheckpoint.class);
+                break;
+            case "cpi":
+                b = new Backup(backupList, CompressedPeriodicCheckpoint.class);
                 break;
             case "pdifferential":
                 b = new Backup(backupList, PeriodicDifferentialCheckpoint.class);
