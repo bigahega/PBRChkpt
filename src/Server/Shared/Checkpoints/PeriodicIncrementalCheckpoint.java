@@ -7,7 +7,7 @@ import java.util.Map;
  */
 public class PeriodicIncrementalCheckpoint extends IncrementalCheckpoint {
 
-    public PeriodicIncrementalCheckpoint(Map<String, Map<String, String>> currentSystemState, Map<String, Map<String, String>> previousSystemState) {
+    public PeriodicIncrementalCheckpoint(Map<String, String> currentSystemState, Map<String, String> previousSystemState) {
         super(currentSystemState, previousSystemState);
     }
 

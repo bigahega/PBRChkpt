@@ -7,7 +7,7 @@ import java.util.Map;
  */
 public class PeriodicDifferentialCheckpoint extends DifferentialCheckpoint {
 
-    public PeriodicDifferentialCheckpoint(Map<String, Map<String, String>> initialSystemState, Map<String, Map<String, String>> currentSystemState) {
+    public PeriodicDifferentialCheckpoint(Map<String, String> initialSystemState, Map<String, String> currentSystemState) {
         super(initialSystemState, currentSystemState);
     }
 

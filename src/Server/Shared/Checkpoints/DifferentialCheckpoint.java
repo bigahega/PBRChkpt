@@ -8,15 +8,15 @@ import java.util.Map;
  */
 public class DifferentialCheckpoint extends Checkpoint {
 
-    public DifferentialCheckpoint(Map<String, Map<String, String>> initialSystemState, Map<String, Map<String, String>> currentSystemState) {
-        Map<String, Map<String, String>> difference = new HashMap<>();
+    public DifferentialCheckpoint(Map<String, String> initialSystemState, Map<String, String> currentSystemState) {
+        Map<String, String> difference = new HashMap<>();
         for (String key : currentSystemState.keySet())
             if (!initialSystemState.containsKey(key))
                 difference.put(key, currentSystemState.get(key));
             else if (!initialSystemState.get(key).equals(currentSystemState.get(key)))
                 difference.put(key, currentSystemState.get(key));
 
-        this.checkpointData = CheckpointUtils.mapToByteArray(difference);
+        CheckpointUtils.mapToByteArray(difference);
     }
 
 }

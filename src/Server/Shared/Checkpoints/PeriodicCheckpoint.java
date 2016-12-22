@@ -7,7 +7,7 @@ import java.util.Map;
  */
 public class PeriodicCheckpoint extends Checkpoint {
 
-    public PeriodicCheckpoint(Map<String, Map<String, String>> checkpointData) {
+    public PeriodicCheckpoint(Map<String, String> checkpointData) {
         this.checkpointData = CheckpointUtils.mapToByteArray(checkpointData);
     }
 

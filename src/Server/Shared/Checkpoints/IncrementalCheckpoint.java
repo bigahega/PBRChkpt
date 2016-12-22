@@ -8,8 +8,8 @@ import java.util.Map;
  */
 public class IncrementalCheckpoint extends Checkpoint {
 
-    public IncrementalCheckpoint(Map<String, Map<String, String>> currentSystemState, Map<String, Map<String, String>> previousSystemState) {
-        Map<String, Map<String, String>> difference = new HashMap<>();
+    public IncrementalCheckpoint(Map<String, String> currentSystemState, Map<String, String> previousSystemState) {
+        Map<String, String> difference = new HashMap<>();
         for (String key : currentSystemState.keySet())
             if (!previousSystemState.containsKey(key))
                 difference.put(key, currentSystemState.get(key));
