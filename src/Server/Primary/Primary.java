@@ -41,39 +41,14 @@ public class Primary {
     private BufferedWriter bufferedWriter;
     private PrintWriter printWriter;
     private ReentrantLock checkpointLock = new ReentrantLock();
+    private int testDataSize = 0;
 
-    public Primary(List<String> serverList, Type checkpointType, String db_path, int db_size) {
-        this(serverList, checkpointType, db_path, db_size, null);
-    }
-
-    public Primary(List<String> serverList, Type checkpointType, String db_path, int db_size, KeyValueStore newKeyValueStore) {
+    public Primary(List<String> serverList, Type checkpointType, int testDataSize) {
         System.out.println("Primary Server is initializing.");
         this.serverList = serverList;
         this.checkpointType = checkpointType;
-        if (newKeyValueStore == null && this.keyValueStore == null) {
-            System.out.println("Key Value Store is null. Initiating...");
-            keyValueStore = new KeyValueStore();
-        } else {
-            System.out.println("Key Value Store is ready.");
-            this.keyValueStore = newKeyValueStore;
-        }
-        if (db_path != null && db_size != -1) {
-            try (BufferedReader reader = new BufferedReader(new FileReader(db_path))) {
-                String line;
-                int i = 0;
-                while ((line = reader.readLine()) != null && keyValueStore.getKeysValues().size() <= db_size) {
-                    try {
-                        String[] matches = line.split("\t");
-                        if (!matches[0].equalsIgnoreCase("\\") && Integer.parseInt(matches[0]) > 0 && matches[1].length() > 1)
-                            keyValueStore.put(matches[0], matches[1]);
-                    } catch (Exception ex2) {
-                        ex2.printStackTrace();
-                    }
-                }
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
-        }
+        System.out.println("Key Value Store is null. Initiating...");
+        keyValueStore = new KeyValueStore();
 
         try {
             this.fileWriter = new FileWriter("primary_log.txt");
@@ -249,7 +224,7 @@ public class Primary {
                                     && !checkpointType.equals(PeriodicIncrementalCheckpoint.class) && !checkpointType.equals(CompressedPeriodicCheckpoint.class))
                                 checkpoint();
                             else {
-                                if (modificationCounter.incrementAndGet() > 100000 && modificationCounter.get() % CHECKPOINT_PERIOD == 0) {
+                                if (modificationCounter.incrementAndGet() > testDataSize && modificationCounter.get() % CHECKPOINT_PERIOD == 0) {
                                     checkpointLock.lock();
                                     checkpoint();
                                     checkpointLock.unlock();
