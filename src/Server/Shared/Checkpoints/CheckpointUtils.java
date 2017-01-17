@@ -1,10 +1,12 @@
 package Server.Shared.Checkpoints;
 
+import com.github.luben.zstd.Zstd;
 import org.tukaani.xz.LZMA2Options;
 import org.tukaani.xz.XZOutputStream;
 
 import java.io.*;
 import java.util.Map;
+import java.util.zip.Deflater;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -12,6 +14,27 @@ import java.util.zip.GZIPOutputStream;
  * Created by Berkin GÜLER on 13.08.2016.
  */
 public class CheckpointUtils {
+
+    public static byte[] byteArrayToGZIPByteArray(byte[] in) {
+        byte[] compressedBytes = null;
+
+        Deflater compressor = new Deflater(Deflater.BEST_COMPRESSION);
+        compressor.setInput(in);
+        compressor.finish();
+
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream(in.length)) {
+            byte[] buf = new byte[1024];
+            while (!compressor.finished()) {
+                int count = compressor.deflate(buf);
+                baos.write(buf, 0, count);
+            }
+            compressedBytes = baos.toByteArray();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+
+        return compressedBytes;
+    }
 
     public static byte[] mapToLZMA2ByteArray(Map<String, String> map) {
         byte[] result = null;
@@ -23,12 +46,32 @@ public class CheckpointUtils {
             xzOutputStream.write(data);
             xzOutputStream.close();
             result = baos.toByteArray();
-            System.out.println("Compression ratio: " + (float) (result.length / data.length));
+            System.out.println("Input length: " + data.length + " Output length: " + result.length);
         } catch (IOException ex) {
             ex.printStackTrace();
         }
 
         return result;
+    }
+
+    public static byte[] byteArrayToLZMA2ByteArray(byte[] data) {
+        byte[] result = null;
+
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            XZOutputStream xzOutputStream = new XZOutputStream(baos, new LZMA2Options(LZMA2Options.PRESET_MAX));
+            xzOutputStream.write(data);
+            xzOutputStream.close();
+            result = baos.toByteArray();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+
+        return result;
+    }
+
+    public static byte[] byteArrayToZstdByteArray(byte[] data) {
+        return Zstd.compress(data);
     }
 
     public static byte[] mapToGZIPByteArray(Map<String, String> map) {

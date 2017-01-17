@@ -68,7 +68,7 @@ public class Backup {
 
     private Response takeover(Request request) {
         this.restoreCheckpoints();
-        Primary p = new Primary(this.serverList, this.checkpointType, );
+        Primary p = new Primary(this.serverList, this.checkpointType, 0);
         p.setKeyValueStore(keyValueStore);
         System.out.println("work work");
         return p.executeWorkRequest(request);

@@ -16,7 +16,7 @@ public class TestBackup {
 
     public static void main(String[] args) {
         backupList.add("planetlab3.rutgers.edu");
-        backupList.add("planetlab1.cesnet.cz");
+        backupList.add("ricepl-5.cs.rice.edu");
         backupList.add("planetlab01.cs.washington.edu");
         Backup b;
         switch (args[0]) {

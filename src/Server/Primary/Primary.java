@@ -47,6 +47,8 @@ public class Primary {
         System.out.println("Primary Server is initializing.");
         this.serverList = serverList;
         this.checkpointType = checkpointType;
+        this.testDataSize = testDataSize;
+        System.out.println("Test Data Size will be: " + testDataSize);
         System.out.println("Key Value Store is null. Initiating...");
         keyValueStore = new KeyValueStore();
 
@@ -221,14 +223,14 @@ public class Primary {
 
                         if (request.getRequestType().equals(RequestType.PUSH)) {
                             if (!checkpointType.equals(PeriodicCheckpoint.class) && !checkpointType.equals(PeriodicDifferentialCheckpoint.class)
-                                    && !checkpointType.equals(PeriodicIncrementalCheckpoint.class) && !checkpointType.equals(CompressedPeriodicCheckpoint.class))
+                                    && !checkpointType.equals(PeriodicIncrementalCheckpoint.class) && !checkpointType.equals(CompressedPeriodicCheckpoint.class)
+                                    && !checkpointType.equals(CompressedPeriodicIncrementalCheckpoint.class))
                                 checkpoint();
                             else {
                                 if (modificationCounter.incrementAndGet() > testDataSize && modificationCounter.get() % CHECKPOINT_PERIOD == 0) {
                                     checkpointLock.lock();
                                     checkpoint();
                                     checkpointLock.unlock();
-                                    modificationCounter.set(0);
                                 }
                             }
                         }
