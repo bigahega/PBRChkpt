@@ -38,7 +38,7 @@ public class TestBackup {
             case "cpincremental":
                 b = new Backup(backupList, CompressedPeriodicIncrementalCheckpoint.class);
                 break;
-            case "cpi":
+            case "cperiodic":
                 b = new Backup(backupList, CompressedPeriodicCheckpoint.class);
                 break;
             case "pdifferential":

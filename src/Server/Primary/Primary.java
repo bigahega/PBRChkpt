@@ -195,7 +195,9 @@ public class Primary {
                 ObjectOutput output = new ObjectOutputStream(this.client.getOutputStream());
                 while (true) {
                     Object incoming = input.readObject();
-                    while (checkpointLock.isLocked()) ;
+                    while (checkpointLock.isLocked()) {
+                        checkpointLock.wait();
+                    }
                     if (incoming instanceof Integer) {
                         if ((int) incoming == 0xDEADBABA) {
                             System.out.println("It is a kill request. Bye!");
@@ -221,18 +223,15 @@ public class Primary {
                         Request request = (Request) incoming;
                         Response response = executeWorkRequest(request);
 
-                        if (request.getRequestType().equals(RequestType.PUSH)) {
-                            if (!checkpointType.equals(PeriodicCheckpoint.class) && !checkpointType.equals(PeriodicDifferentialCheckpoint.class)
-                                    && !checkpointType.equals(PeriodicIncrementalCheckpoint.class) && !checkpointType.equals(CompressedPeriodicCheckpoint.class)
-                                    && !checkpointType.equals(CompressedPeriodicIncrementalCheckpoint.class))
+                        if (request.getRequestType().equals(RequestType.PUSH) && keyValueStore.getKeysValues().size() > testDataSize) {
+                            if (!PeriodicCheckpoint.class.isAssignableFrom(checkpointType.getClass()) ||
+                                    modificationCounter.incrementAndGet() % CHECKPOINT_PERIOD == 0) {
+                                checkpointLock.lock();
                                 checkpoint();
-                            else {
-                                if (modificationCounter.incrementAndGet() > testDataSize && modificationCounter.get() % CHECKPOINT_PERIOD == 0) {
-                                    checkpointLock.lock();
-                                    checkpoint();
-                                    checkpointLock.unlock();
-                                }
+                                checkpointLock.unlock();
+                                checkpointLock.notifyAll();
                             }
+
                         }
                         output.writeObject(response);
                     } else

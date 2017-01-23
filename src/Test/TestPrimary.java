@@ -39,7 +39,7 @@ public class TestPrimary {
             case "cpincremental":
                 p = new Primary(backupList, CompressedPeriodicIncrementalCheckpoint.class, testDataSize);
                 break;
-            case "cpi":
+            case "cperiodic":
                 p = new Primary(backupList, CompressedPeriodicCheckpoint.class, testDataSize);
                 break;
             case "pdifferential":
