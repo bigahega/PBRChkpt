@@ -6,6 +6,10 @@ import Server.Shared.ExchangeObjects.RequestType;
 import Server.Shared.ExchangeObjects.Response;
 import Server.Shared.ExchangeObjects.ResponseType;
 import Server.Shared.KeyValueStore;
+import com.codahale.metrics.ConsoleReporter;
+import com.codahale.metrics.CsvReporter;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
 import org.apache.commons.io.output.CountingOutputStream;
 
 import java.io.*;
@@ -13,10 +17,8 @@ import java.lang.reflect.Type;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -25,7 +27,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class Primary {
 
-    private static int CHECKPOINT_PERIOD = 500;
+    private static AtomicInteger CHECKPOINT_PERIOD = new AtomicInteger(50);
     private static long checkpoint_count = 0;
     private static long checkpoint_delay = 0;
     private final int primaryPort = 1881;
@@ -42,6 +44,14 @@ public class Primary {
     private PrintWriter printWriter;
     private ReentrantLock checkpointLock = new ReentrantLock();
     private int testDataSize = 0;
+    private static MetricRegistry metrics = new MetricRegistry();
+    private static Meter requests = metrics.meter("requests");
+
+    private class PeriodAdjuster extends TimerTask {
+        public void run() {
+            updatePeriod();
+        }
+    }
 
     public Primary(List<String> serverList, Type checkpointType, int testDataSize) {
         System.out.println("Primary Server is initializing.");
@@ -50,7 +60,16 @@ public class Primary {
         this.testDataSize = testDataSize;
         System.out.println("Test Data Size will be: " + testDataSize);
         System.out.println("Key Value Store is null. Initiating...");
+        System.out.println("Using Zstd compression library");
         keyValueStore = new KeyValueStore();
+        //final CsvReporter reporter = CsvReporter.forRegistry(metrics)
+        //        .formatFor(Locale.US)
+        //        .convertRatesTo(TimeUnit.SECONDS)
+        //        .convertDurationsTo(TimeUnit.MILLISECONDS)
+        //        .build(new File("data.csv"));
+        //reporter.start(1, TimeUnit.SECONDS);
+        Timer timer = new Timer();
+        timer.schedule(new PeriodAdjuster(), 0, 5000);
 
         try {
             this.fileWriter = new FileWriter("primary_log.txt");
@@ -93,17 +112,36 @@ public class Primary {
         }
     }
 
+    private void updatePeriod() {
+        if(requests.getOneMinuteRate() >= 200) {
+                CHECKPOINT_PERIOD.set(500);
+                System.out.println("Period is adjusted to: 500");
+            }
+        else if(requests.getOneMinuteRate() >= 100) {
+                CHECKPOINT_PERIOD.set(250);
+                System.out.println("Period is adjusted to: 250");
+            }
+        else if(requests.getOneMinuteRate() >= 50) {
+                CHECKPOINT_PERIOD.set(100);
+                System.out.println("Period is adjusted to: 100");
+            }
+        else if(requests.getOneMinuteRate() < 50) {
+                CHECKPOINT_PERIOD.set(50);
+                System.out.println("Period is adjusted to: 50");
+            }
+    }
+
     public Response executeWorkRequest(Request request) {
         Response response = null;
         RequestType requestType = request.getRequestType();
         String requestedKey = request.getKey();
         if (requestType.equals(RequestType.PULL)) {
-            System.out.println("It is a PULL request.");
+            //System.out.println("It is a PULL request.");
             String value;
             value = keyValueStore.get(requestedKey);
             response = new Response(value);
         } else if (requestType.equals(RequestType.PUSH)) {
-            System.out.println("It is a PUSH request.");
+            //System.out.println("It is a PUSH request.");
             String value = request.getValue();
             keyValueStore.put(requestedKey, value);
             response = new Response("OK");
@@ -112,8 +150,8 @@ public class Primary {
     }
 
     private void checkpoint() {
-        System.out.println("Checkpointing is initializing...");
-        System.out.println("Checkpoint Type is: " + this.checkpointType.getTypeName());
+        //System.out.println("Checkpointing is initializing...");
+        //System.out.println("Checkpoint Type is: " + this.checkpointType.getTypeName());
         Map<String, String> currentSystemState = this.keyValueStore.getKeysValues();
         Checkpoint checkpoint;
         if (this.checkpointType.equals(FullCheckpoint.class))
@@ -145,17 +183,17 @@ public class Primary {
         ArrayList<Long> sizes = new ArrayList<>();
         this.serverList.parallelStream().forEach(backupServer -> {
             try {
-                System.out.println("Connecting to backup server: " + backupServer);
+                //System.out.println("Connecting to backup server: " + backupServer);
                 Socket connectionToBackupServer = new Socket(backupServer, this.backupPort);
                 CountingOutputStream counterStream = new CountingOutputStream(connectionToBackupServer.getOutputStream());
                 ObjectOutput outputToBackupServer = new ObjectOutputStream(counterStream);
                 ObjectInput inputFromBackupServer = new ObjectInputStream(connectionToBackupServer.getInputStream());
-                System.out.println("Sending the checkpoint object to backup server: " + backupServer);
+                //System.out.println("Sending the checkpoint object to backup server: " + backupServer);
                 outputToBackupServer.writeObject(checkpoint);
                 Response response = (Response) inputFromBackupServer.readObject();
                 if (!response.getResponseType().equals(ResponseType.ACK))
                     throw new IllegalStateException("Incorrect checkpoint response from server: " + backupServer);
-                System.out.println("Backup server " + backupServer + " accepted the checkpoint.");
+                //System.out.println("Backup server " + backupServer + " accepted the checkpoint.");
                 sizes.add(counterStream.getByteCount());
                 outputToBackupServer.close();
                 counterStream.close();
@@ -171,8 +209,8 @@ public class Primary {
         this.printWriter.println(String.format("%d\t%d\t%d\t%d", checkpoint_count, (end - start) / 1000000, checkpoint_delay / checkpoint_count, sizes.get(0)));
         this.printWriter.flush();
         sizes.clear();
-        System.out.println("Checkpointing process delayed " + (end - start) / 1000000 + "ms");
-        System.out.println("Average checkpoint delay: " + checkpoint_delay / checkpoint_count + "ms");
+        //System.out.println("Checkpointing process delayed " + (end - start) / 1000000 + "ms");
+        //System.out.println("Average checkpoint delay: " + checkpoint_delay / checkpoint_count + "ms");
         this.previousSystemState = new HashMap<>(currentSystemState);
     }
 
@@ -194,10 +232,9 @@ public class Primary {
                 ObjectInput input = new ObjectInputStream(this.client.getInputStream());
                 ObjectOutput output = new ObjectOutputStream(this.client.getOutputStream());
                 while (true) {
+                    requests.mark();
                     Object incoming = input.readObject();
-                    while (checkpointLock.isLocked()) {
-                        checkpointLock.wait();
-                    }
+                    while (checkpointLock.isLocked());
                     if (incoming instanceof Integer) {
                         if ((int) incoming == 0xDEADBABA) {
                             System.out.println("It is a kill request. Bye!");
@@ -219,24 +256,23 @@ public class Primary {
                             break;
                         }
                     } else if (incoming instanceof Request) {
-                        System.out.println("New request incoming.");
+                        //System.out.println("New request incoming.");
                         Request request = (Request) incoming;
                         Response response = executeWorkRequest(request);
 
-                        if (request.getRequestType().equals(RequestType.PUSH) && keyValueStore.getKeysValues().size() > testDataSize) {
-                            if (!PeriodicCheckpoint.class.isAssignableFrom(checkpointType.getClass()) ||
-                                    modificationCounter.incrementAndGet() % CHECKPOINT_PERIOD == 0) {
+                        if (request.getRequestType().equals(RequestType.PUSH) && modificationCounter.incrementAndGet() >= testDataSize) {
+                            if (!checkpointType.getTypeName().contains("Periodic") ||
+                                    modificationCounter.get() % CHECKPOINT_PERIOD.get() == 0) {
                                 checkpointLock.lock();
                                 checkpoint();
                                 checkpointLock.unlock();
-                                checkpointLock.notifyAll();
                             }
 
                         }
                         output.writeObject(response);
                     } else
                         break;
-                    System.out.println("DB Size: " + keyValueStore.getKeysValues().size());
+                    //System.out.println("DB Size: " + keyValueStore.getKeysValues().size());
                 }
                 output.close();
                 this.client.close();

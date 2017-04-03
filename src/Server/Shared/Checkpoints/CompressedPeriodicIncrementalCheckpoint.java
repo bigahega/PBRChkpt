@@ -9,7 +9,7 @@ public class CompressedPeriodicIncrementalCheckpoint extends PeriodicIncremental
 
     public CompressedPeriodicIncrementalCheckpoint(Map<String, String> currentSystemState, Map<String, String> previousSystemState) {
         super(currentSystemState, previousSystemState);
-        this.checkpointData = CheckpointUtils.byteArrayToGZIPByteArray(this.checkpointData);
+        this.checkpointData = CheckpointUtils.byteArrayToZstdByteArray(this.checkpointData);
     }
 
 }
