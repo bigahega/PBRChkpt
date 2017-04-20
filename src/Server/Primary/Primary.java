@@ -6,10 +6,6 @@ import Server.Shared.ExchangeObjects.RequestType;
 import Server.Shared.ExchangeObjects.Response;
 import Server.Shared.ExchangeObjects.ResponseType;
 import Server.Shared.KeyValueStore;
-import com.codahale.metrics.ConsoleReporter;
-import com.codahale.metrics.CsvReporter;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricRegistry;
 import org.apache.commons.io.output.CountingOutputStream;
 
 import java.io.*;
@@ -18,7 +14,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -30,6 +25,7 @@ public class Primary {
     private static AtomicInteger CHECKPOINT_PERIOD = new AtomicInteger(50);
     private static long checkpoint_count = 0;
     private static long checkpoint_delay = 0;
+    private static int time = 0;
     private final int primaryPort = 1881;
     private final int backupPort = 1882;
     private KeyValueStore keyValueStore = null;
@@ -39,19 +35,12 @@ public class Primary {
     private Map<String, String> previousSystemState;
     private Type checkpointType;
     private AtomicInteger modificationCounter = new AtomicInteger(0);
-    private FileWriter fileWriter;
-    private BufferedWriter bufferedWriter;
-    private PrintWriter printWriter;
+    private FileWriter primaryFileWriter, requestRateFileWriter;
+    private BufferedWriter primaryBufferedWriter, requestRateBufferedWriter;
+    private PrintWriter primaryPrintWriter, requestRatePrintWriter;
     private ReentrantLock checkpointLock = new ReentrantLock();
     private int testDataSize = 0;
-    private static MetricRegistry metrics = new MetricRegistry();
-    private static Meter requests = metrics.meter("requests");
-
-    private class PeriodAdjuster extends TimerTask {
-        public void run() {
-            updatePeriod();
-        }
-    }
+    private AtomicInteger requestMeter = new AtomicInteger(0);
 
     public Primary(List<String> serverList, Type checkpointType, int testDataSize) {
         System.out.println("Primary Server is initializing.");
@@ -62,19 +51,16 @@ public class Primary {
         System.out.println("Key Value Store is null. Initiating...");
         System.out.println("Using Zstd compression library");
         keyValueStore = new KeyValueStore();
-        //final CsvReporter reporter = CsvReporter.forRegistry(metrics)
-        //        .formatFor(Locale.US)
-        //        .convertRatesTo(TimeUnit.SECONDS)
-        //        .convertDurationsTo(TimeUnit.MILLISECONDS)
-        //        .build(new File("data.csv"));
-        //reporter.start(1, TimeUnit.SECONDS);
         Timer timer = new Timer();
         timer.schedule(new PeriodAdjuster(), 0, 5000);
 
         try {
-            this.fileWriter = new FileWriter("primary_log.txt");
-            this.bufferedWriter = new BufferedWriter(fileWriter);
-            this.printWriter = new PrintWriter(bufferedWriter);
+            this.primaryFileWriter = new FileWriter("primary_log.txt");
+            this.primaryBufferedWriter = new BufferedWriter(primaryFileWriter);
+            this.primaryPrintWriter = new PrintWriter(primaryBufferedWriter);
+            this.requestRateFileWriter = new FileWriter("request_rates.txt");
+            this.requestRateBufferedWriter = new BufferedWriter(requestRateFileWriter);
+            this.requestRatePrintWriter = new PrintWriter(requestRateBufferedWriter);
         } catch (IOException ex) {
             ex.printStackTrace();
         }
@@ -113,22 +99,24 @@ public class Primary {
     }
 
     private void updatePeriod() {
-        if(requests.getOneMinuteRate() >= 200) {
-                CHECKPOINT_PERIOD.set(500);
-                System.out.println("Period is adjusted to: 500");
-            }
-        else if(requests.getOneMinuteRate() >= 100) {
-                CHECKPOINT_PERIOD.set(250);
-                System.out.println("Period is adjusted to: 250");
-            }
-        else if(requests.getOneMinuteRate() >= 50) {
-                CHECKPOINT_PERIOD.set(100);
-                System.out.println("Period is adjusted to: 100");
-            }
-        else if(requests.getOneMinuteRate() < 50) {
-                CHECKPOINT_PERIOD.set(50);
-                System.out.println("Period is adjusted to: 50");
-            }
+        System.out.println("req/s: " + this.requestMeter.get() / 5);
+        if (modificationCounter.get() < testDataSize) {
+            System.out.println("still loading...");
+            this.requestMeter.set(0);
+            return;
+        }
+        if (this.requestMeter.get() / 5 < 50) {
+            System.out.println("req/s low");
+            this.requestMeter.set(0);
+            CHECKPOINT_PERIOD.set(50);
+            return;
+        }
+        int reqRate = this.requestMeter.getAndSet(0) / 5;
+        CHECKPOINT_PERIOD.set((int) (reqRate * .5));
+        //CHECKPOINT_PERIOD.set(200);
+        this.requestRatePrintWriter.println(time + " " + reqRate + " " + (int) (reqRate * 1.5));
+        this.requestRatePrintWriter.flush();
+        time += 5;
     }
 
     public Response executeWorkRequest(Request request) {
@@ -206,8 +194,8 @@ public class Primary {
         long end = System.nanoTime();
         checkpoint_count++;
         checkpoint_delay += (end - start) / 1000000;
-        this.printWriter.println(String.format("%d\t%d\t%d\t%d", checkpoint_count, (end - start) / 1000000, checkpoint_delay / checkpoint_count, sizes.get(0)));
-        this.printWriter.flush();
+        this.primaryPrintWriter.println(String.format("%d\t%d\t%d\t%d", checkpoint_count, (end - start) / 1000000, checkpoint_delay / checkpoint_count, sizes.get(0)));
+        this.primaryPrintWriter.flush();
         sizes.clear();
         //System.out.println("Checkpointing process delayed " + (end - start) / 1000000 + "ms");
         //System.out.println("Average checkpoint delay: " + checkpoint_delay / checkpoint_count + "ms");
@@ -216,6 +204,12 @@ public class Primary {
 
     public void setKeyValueStore(KeyValueStore newKeyValueStore) {
         keyValueStore = newKeyValueStore;
+    }
+
+    private class PeriodAdjuster extends TimerTask {
+        public void run() {
+            updatePeriod();
+        }
     }
 
     private class ServerWorker extends Thread {
@@ -232,7 +226,7 @@ public class Primary {
                 ObjectInput input = new ObjectInputStream(this.client.getInputStream());
                 ObjectOutput output = new ObjectOutputStream(this.client.getOutputStream());
                 while (true) {
-                    requests.mark();
+                    requestMeter.incrementAndGet();
                     Object incoming = input.readObject();
                     while (checkpointLock.isLocked());
                     if (incoming instanceof Integer) {
@@ -249,9 +243,9 @@ public class Primary {
                                     ex.printStackTrace();
                                 }
                             });
-                            printWriter.close();
-                            bufferedWriter.close();
-                            fileWriter.close();
+                            primaryPrintWriter.close();
+                            primaryBufferedWriter.close();
+                            primaryFileWriter.close();
                             System.exit(0);
                             break;
                         }
