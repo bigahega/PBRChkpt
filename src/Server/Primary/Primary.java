@@ -52,7 +52,7 @@ public class Primary {
         System.out.println("Using Zstd compression library");
         keyValueStore = new KeyValueStore();
         Timer timer = new Timer();
-        timer.schedule(new PeriodAdjuster(), 0, 5000);
+        timer.schedule(new PeriodAdjuster(), 0, 50000);
 
         try {
             this.primaryFileWriter = new FileWriter("primary_log.txt");
@@ -99,24 +99,24 @@ public class Primary {
     }
 
     private void updatePeriod() {
-        System.out.println("req/s: " + this.requestMeter.get() / 5);
+        System.out.println("req/s: " + this.requestMeter.get() / 50);
         if (modificationCounter.get() < testDataSize) {
             System.out.println("still loading...");
             this.requestMeter.set(0);
             return;
         }
-        if (this.requestMeter.get() / 5 < 50) {
+        if (this.requestMeter.get() / 50 < 50) {
             System.out.println("req/s low");
             this.requestMeter.set(0);
             CHECKPOINT_PERIOD.set(50);
             return;
         }
-        int reqRate = this.requestMeter.getAndSet(0) / 5;
-        CHECKPOINT_PERIOD.set((int) (reqRate * .5));
+        int reqRate = this.requestMeter.getAndSet(0) / 50;
+        CHECKPOINT_PERIOD.set((int) (reqRate * 1.5));
         //CHECKPOINT_PERIOD.set(200);
         this.requestRatePrintWriter.println(time + " " + reqRate + " " + (int) (reqRate * 1.5));
         this.requestRatePrintWriter.flush();
-        time += 5;
+        time += 10;
     }
 
     public Response executeWorkRequest(Request request) {

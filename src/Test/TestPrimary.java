@@ -16,7 +16,7 @@ public class TestPrimary {
 
     public static void main(String[] args) {
         backupList.add("planetlab3.rutgers.edu");
-        backupList.add("ricepl-5.cs.rice.edu");
+        //backupList.add("ricepl-5.cs.rice.edu");
         backupList.add("planetlab01.cs.washington.edu");
         Primary p;
         int testDataSize = Integer.parseInt(args[1]);
