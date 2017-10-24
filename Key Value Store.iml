@@ -12,5 +12,6 @@
     <orderEntry type="library" name="org.tukaani:xz:1.6" level="project" />
     <orderEntry type="library" name="com.github.luben:zstd-jni:1.1.1" level="project" />
     <orderEntry type="library" name="io.dropwizard.metrics:metrics-core:3.2.2" level="project" />
+    <orderEntry type="library" name="org.rocksdb:rocksdbjni:5.8.0" level="project" />
   </component>
 </module>

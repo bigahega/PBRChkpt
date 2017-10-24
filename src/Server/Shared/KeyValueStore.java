@@ -1,37 +1,47 @@
 package Server.Shared;
 
+import org.rocksdb.*;
+
 import java.io.Serializable;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by Berkin GÜLER (bguler15@ku.edu.tr) on 10.03.2016.
  */
 public class KeyValueStore implements Serializable {
 
-    private ConcurrentHashMap<String, String> keysValues;
+    private RocksDB rocksDB_instance;
+    private Options options;
 
     public KeyValueStore()
     {
-        this.keysValues = new ConcurrentHashMap<>();
+        this.options = new Options();
+        this.options.setCreateIfMissing(true);
+        try {
+            this.rocksDB_instance = RocksDB.open(this.options, "/tmp/pbr_db");
+        } catch (RocksDBException ex) {
+            ex.printStackTrace();
+            System.exit(-1);
+        }
     }
 
-    public void put(String key, String Value)
+    public void put(String key, String value)
     {
-        this.keysValues.put(key, Value);
+        try {
+            this.rocksDB_instance.put(new WriteOptions(), key.getBytes(), value.getBytes());
+        } catch (RocksDBException ex) {
+            ex.printStackTrace();
+        }
     }
 
     public String get(String key)
     {
-        return this.keysValues.get(key);
-    }
-
-    public Map<String, String> getKeysValues() {
-        return this.keysValues;
-    }
-
-    public void restoreCheckpoint(Map<String, String> checkpoint) {
-        this.keysValues = (ConcurrentHashMap<String, String>) checkpoint;
+        byte[] val_bytes = null;
+        try {
+            val_bytes = this.rocksDB_instance.get(new ReadOptions(), key.getBytes());
+        } catch (RocksDBException ex) {
+            ex.printStackTrace();
+        }
+        return new String(val_bytes);
     }
 
 }

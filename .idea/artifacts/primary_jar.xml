@@ -11,6 +11,7 @@
       <element id="extracted-dir" path="$PROJECT_DIR$/lib/zstd-jni-1.1.1.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$PROJECT_DIR$/lib/metrics-core-3.2.2.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$PROJECT_DIR$/lib/slf4j-api-1.7.22.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/lib/rocksdbjni-5.8.0.jar" path-in-jar="/" />
     </root>
   </artifact>
 </component>

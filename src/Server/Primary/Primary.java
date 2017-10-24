@@ -22,7 +22,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class Primary {
 
-    private static AtomicInteger CHECKPOINT_PERIOD = new AtomicInteger(50);
+    private static AtomicInteger CHECKPOINT_PERIOD = new AtomicInteger(500);
     private static long checkpoint_count = 0;
     private static long checkpoint_delay = 0;
     private static int time = 0;
@@ -52,7 +52,7 @@ public class Primary {
         System.out.println("Using Zstd compression library");
         keyValueStore = new KeyValueStore();
         Timer timer = new Timer();
-        timer.schedule(new PeriodAdjuster(), 0, 50000);
+        timer.schedule(new PeriodAdjuster(), 0, 5000);
 
         try {
             this.primaryFileWriter = new FileWriter("primary_log.txt");
@@ -65,11 +65,11 @@ public class Primary {
             ex.printStackTrace();
         }
 
-        this.initalSystemState = new HashMap<>(keyValueStore.getKeysValues());
+        this.initalSystemState = null;
         this.previousSystemState = new HashMap<>();
 
         try {
-            System.out.println("Initial DB size: " + keyValueStore.getKeysValues().size());
+            //System.out.println("Initial DB size: " + keyValueStore.getKeysValues().size());
             this.listenerSocket = new ServerSocket(this.primaryPort);
             System.out.println("Socket " + this.primaryPort + " is created.");
             while (true) {
@@ -99,24 +99,24 @@ public class Primary {
     }
 
     private void updatePeriod() {
-        System.out.println("req/s: " + this.requestMeter.get() / 50);
+        System.out.println("req/s: " + this.requestMeter.get() / 5);
         if (modificationCounter.get() < testDataSize) {
             System.out.println("still loading...");
             this.requestMeter.set(0);
             return;
         }
-        if (this.requestMeter.get() / 50 < 50) {
+        if (this.requestMeter.get() / 5 < 50) {
             System.out.println("req/s low");
             this.requestMeter.set(0);
             CHECKPOINT_PERIOD.set(50);
             return;
         }
-        int reqRate = this.requestMeter.getAndSet(0) / 50;
+        int reqRate = this.requestMeter.getAndSet(0) / 5;
         CHECKPOINT_PERIOD.set((int) (reqRate * 1.5));
         //CHECKPOINT_PERIOD.set(200);
         this.requestRatePrintWriter.println(time + " " + reqRate + " " + (int) (reqRate * 1.5));
         this.requestRatePrintWriter.flush();
-        time += 10;
+        time += 5;
     }
 
     public Response executeWorkRequest(Request request) {
@@ -140,7 +140,7 @@ public class Primary {
     private void checkpoint() {
         //System.out.println("Checkpointing is initializing...");
         //System.out.println("Checkpoint Type is: " + this.checkpointType.getTypeName());
-        Map<String, String> currentSystemState = this.keyValueStore.getKeysValues();
+        Map<String, String> currentSystemState = null;//this.keyValueStore.getKeysValues();
         Checkpoint checkpoint;
         if (this.checkpointType.equals(FullCheckpoint.class))
             checkpoint = new FullCheckpoint(currentSystemState);
@@ -189,6 +189,7 @@ public class Primary {
                 connectionToBackupServer.close();
             } catch (Exception ex) {
                 ex.printStackTrace();
+                System.out.println("cant connec to " + backupServer);
             }
         });
         long end = System.nanoTime();
